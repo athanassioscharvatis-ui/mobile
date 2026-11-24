@@ -1,0 +1,2922 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Εκπαιδευτικός Προσομοιωτής Smartphone</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for crisp UI icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Tone.js for realistic UI & dial pad audio feedback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Custom scrollbar for phone screen */
+        .phone-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        .phone-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .phone-scroll::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 10px;
+        }
+
+        /* Teacher Mode Pulse Highlight Animation */
+        @keyframes teacherPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.85), 0 0 0 4px rgba(245, 158, 11, 0.9);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(245, 158, 11, 0), 0 0 0 5px rgba(245, 158, 11, 1);
+                transform: scale(1.04);
+            }
+        }
+
+        .teacher-highlight {
+            animation: teacherPulse 1.5s infinite ease-in-out !important;
+            position: relative;
+            z-index: 45 !important;
+            border-radius: 16px;
+        }
+
+        /* Smooth transitions for quick settings & modals */
+        .shade-transition {
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        /* Font scale helper classes for Accessibility setting */
+        .font-scale-normal { font-size: 16px; }
+        .font-scale-large { font-size: 19px; }
+        .font-scale-xlarge { font-size: 22px; }
+
+        /* Bold text accessibility helper */
+        .bold-text-mode * {
+            font-weight: 700 !important;
+        }
+
+        /* Dynamic Accent Theme Variables */
+        :root {
+            --accent-bg: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-soft: #dbeafe;
+            --accent-text: #1e40af;
+            --accent-border: #93c5fd;
+        }
+
+        .accent-bg { background-color: var(--accent-bg) !important; }
+        .accent-hover:hover { background-color: var(--accent-hover) !important; }
+        .accent-soft { background-color: var(--accent-soft) !important; }
+        .accent-text { color: var(--accent-text) !important; }
+        .accent-border { border-color: var(--accent-border) !important; }
+
+        /* Range input styling */
+        input[type="range"] {
+            accent-color: var(--accent-bg);
+            height: 8px;
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col lg:flex-row items-center justify-center p-2 sm:p-4 lg:p-6 gap-6 overflow-x-hidden">
+
+    <!-- Top Mobile Bar to Toggle Teacher Mode on small screens -->
+    <div class="w-full max-w-md flex lg:hidden items-center justify-between bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-200">
+        <div class="flex items-center gap-2">
+            <span class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            </span>
+            <div>
+                <h1 class="font-bold text-sm text-slate-900">Εκπαιδευτικό Κινητό</h1>
+                <p class="text-xs text-slate-500">Προσομοιωτής Ε΄-ΣΤ΄ / Ειδικής Αγωγής</p>
+            </div>
+        </div>
+        <button onclick="toggleTeacherPanel()" id="mobile-teacher-btn" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition">
+            <i class="fa-solid fa-chalkboard-user"></i>
+            <span>Εκπαιδευτής</span>
+        </button>
+    </div>
+
+    <!-- LEFT / CENTER: REALISTIC SMARTPHONE FRAME -->
+    <div class="relative flex flex-col items-center justify-center shrink-0">
+        <!-- Hardware Outer Frame -->
+        <div class="relative w-[360px] sm:w-[395px] h-[740px] sm:h-[780px] bg-slate-900 rounded-[48px] p-3 shadow-2xl border-[4px] border-slate-700 flex flex-col">
+            
+            <!-- Side Hardware Buttons (Visual & Interactive) -->
+            <button onclick="adjustVolumeFromHardware(10)" title="Αύξηση Έντασης" class="hidden sm:flex items-center justify-center absolute -right-[7px] top-28 w-[4px] h-12 bg-slate-600 hover:bg-blue-400 rounded-r-md cursor-pointer transition"></button>
+            <button onclick="adjustVolumeFromHardware(-10)" title="Μείωση Έντασης" class="hidden sm:flex items-center justify-center absolute -right-[7px] top-44 w-[4px] h-12 bg-slate-600 hover:bg-blue-400 rounded-r-md cursor-pointer transition"></button>
+            <button onclick="togglePowerLock()" title="Κλείδωμα / Ξεκλείδωμα Οθόνης" class="hidden sm:flex items-center justify-center absolute -right-[7px] top-64 w-[4px] h-16 bg-slate-600 hover:bg-amber-400 rounded-r-md cursor-pointer transition"></button>
+
+            <!-- Inner Screen Container -->
+            <div id="phone-screen" class="relative w-full h-full rounded-[38px] overflow-hidden flex flex-col bg-slate-50 text-slate-900 font-scale-normal transition-colors duration-300">
+                
+                <!-- Brightness Overlay Filter (Simulates real screen brightness) -->
+                <div id="brightness-overlay" class="pointer-events-none absolute inset-0 bg-black opacity-0 z-50 transition-opacity duration-150"></div>
+
+                <!-- Flashlight Screen Glow Indicator -->
+                <div id="flashlight-banner" class="hidden absolute top-9 left-1/2 -translate-x-1/2 z-40 bg-amber-400 text-slate-950 text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5">
+                    <i class="fa-solid fa-bolt"></i> Φακός Ενεργός
+                </div>
+
+                <!-- TOP STATUS BAR (Clickable / Swipeable to open Quick Settings) -->
+                <div id="status-bar" onclick="toggleQuickSettings(true)" data-target="status-bar"
+                     class="relative z-30 h-9 px-5 pt-1 flex items-center justify-between text-xs font-semibold cursor-pointer select-none transition-colors bg-transparent">
+                    <div class="flex items-center gap-2">
+                        <span id="status-time">09:30</span>
+                        <span id="status-airplane" class="hidden text-amber-500"><i class="fa-solid fa-plane"></i></span>
+                        <span id="status-sound-mode" class="text-slate-600"><i class="fa-solid fa-volume-high"></i></span>
+                    </div>
+                    <!-- Camera Punch-Hole -->
+                    <div class="w-4 h-4 rounded-full bg-slate-950 border border-slate-800 shadow-inner"></div>
+                    <!-- Right Status Icons -->
+                    <div class="flex items-center gap-2">
+                        <span id="status-wifi" class="text-slate-400"><i class="fa-solid fa-wifi"></i></span>
+                        <span id="status-bt" class="hidden text-blue-500"><i class="fa-brands fa-bluetooth-b"></i></span>
+                        <span id="status-signal"><i class="fa-solid fa-signal"></i></span>
+                        <div class="flex items-center gap-1">
+                            <span id="status-battery-text" class="text-[11px]">85%</span>
+                            <i id="status-battery-icon" class="fa-solid fa-battery-three-quarters text-emerald-500 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Pull-Down Handle Hint under Status Bar -->
+                <div onclick="toggleQuickSettings(true)" data-target="status-bar" class="z-30 w-full flex justify-center py-0.5 cursor-pointer group">
+                    <div class="w-10 h-1 rounded-full bg-slate-400/50 group-hover:bg-blue-500 transition"></div>
+                </div>
+
+                <!-- SWIPE-DOWN QUICK SETTINGS & NOTIFICATIONS SHADE -->
+                <div id="quick-settings-shade" class="shade-transition -translate-y-full absolute inset-0 z-40 bg-slate-900/95 text-white backdrop-blur-md flex flex-col p-5 pt-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <p id="shade-time" class="text-2xl font-bold">09:30</p>
+                            <p class="text-xs text-slate-300">Τρίτη, 24 Νοεμβρίου</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openApp('settings'); toggleQuickSettings(false);" class="p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200" title="Όλες οι Ρυθμίσεις">
+                                <i class="fa-solid fa-gear"></i>
+                            </button>
+                            <button onclick="toggleQuickSettings(false)" class="px-3 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-xs font-bold">
+                                Κλείσιμο <i class="fa-solid fa-chevron-up ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Toggles Grid -->
+                    <div class="grid grid-cols-2 gap-3 mb-5">
+                        <!-- Wi-Fi Toggle -->
+                        <button id="qs-wifi-btn" data-target="qs-wifi" onclick="toggleWifi()" class="p-3.5 rounded-2xl bg-slate-800 flex items-center gap-3 text-left transition border border-slate-700">
+                            <div id="qs-wifi-icon" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-wifi"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="font-bold text-sm">Wi-Fi</p>
+                                <p id="qs-wifi-label" class="text-xs text-slate-400 truncate">Ανενεργό</p>
+                            </div>
+                        </button>
+
+                        <!-- Bluetooth Toggle -->
+                        <button id="qs-bt-btn" data-target="qs-bt" onclick="toggleBluetooth()" class="p-3.5 rounded-2xl bg-slate-800 flex items-center gap-3 text-left transition border border-slate-700">
+                            <div id="qs-bt-icon" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg">
+                                <i class="fa-brands fa-bluetooth-b"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="font-bold text-sm">Bluetooth</p>
+                                <p id="qs-bt-label" class="text-xs text-slate-400 truncate">Ανενεργό</p>
+                            </div>
+                        </button>
+
+                        <!-- Flashlight Toggle -->
+                        <button id="qs-flash-btn" data-target="qs-flash" onclick="toggleFlashlight()" class="p-3.5 rounded-2xl bg-slate-800 flex items-center gap-3 text-left transition border border-slate-700">
+                            <div id="qs-flash-icon" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm">Φακός</p>
+                                <p id="qs-flash-label" class="text-xs text-slate-400">Κλειστός</p>
+                            </div>
+                        </button>
+
+                        <!-- Airplane Mode Toggle -->
+                        <button id="qs-air-btn" data-target="qs-air" onclick="toggleAirplane()" class="p-3.5 rounded-2xl bg-slate-800 flex items-center gap-3 text-left transition border border-slate-700">
+                            <div id="qs-air-icon" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-plane"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm">Πτήση</p>
+                                <p id="qs-air-label" class="text-xs text-slate-400">Ανενεργή</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Brightness & Volume Sliders -->
+                    <div class="bg-slate-800/90 rounded-2xl p-4 space-y-4 border border-slate-700 mb-4">
+                        <div data-target="qs-brightness">
+                            <div class="flex justify-between text-xs font-semibold mb-1.5">
+                                <span><i class="fa-solid fa-sun text-amber-400 mr-1.5"></i>Φωτεινότητα Οθόνης</span>
+                                <span id="qs-brightness-val">100%</span>
+                            </div>
+                            <input id="qs-brightness-slider" type="range" min="25" max="100" value="100" oninput="setBrightness(this.value)" class="w-full cursor-pointer">
+                        </div>
+
+                        <div data-target="qs-volume">
+                            <div class="flex justify-between text-xs font-semibold mb-1.5">
+                                <span><i class="fa-solid fa-volume-high text-blue-400 mr-1.5"></i>Ένταση Ήχου</span>
+                                <span id="qs-volume-val">70%</span>
+                            </div>
+                            <input id="qs-volume-slider" type="range" min="0" max="100" value="70" oninput="setVolume(this.value)" class="w-full cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- Sample Educational Notification -->
+                    <div class="bg-slate-800/70 rounded-2xl p-3.5 border border-slate-700/80">
+                        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                            <span class="font-semibold text-blue-400"><i class="fa-solid fa-bell mr-1"></i> Ειδοποίηση Σχολείου</span>
+                            <span>Τώρα</span>
+                        </div>
+                        <p class="text-xs text-slate-200">Καλώς ήρθατε στο μάθημα χρήσης έξυπνου τηλεφώνου! Σύρετε προς τα πάνω για να κλείσετε αυτό το μενού.</p>
+                    </div>
+
+                    <!-- Bottom drag handle to close -->
+                    <button onclick="toggleQuickSettings(false)" class="mt-auto mx-auto py-2 px-6 flex flex-col items-center gap-1 text-slate-400 hover:text-white">
+                        <div class="w-12 h-1.5 bg-slate-500 rounded-full"></div>
+                        <span class="text-[11px]">Πάτησε για επιστροφή</span>
+                    </button>
+                </div>
+
+                <!-- LOCK SCREEN OVERLAY -->
+                <div id="lock-screen" class="absolute inset-0 z-20 text-white flex flex-col items-center justify-between p-6 pt-14 pb-10 transition-all duration-300 overflow-hidden" style="background: linear-gradient(135deg, #1e3a8a, #312e81, #0f172a);">
+                    <!-- Lock Screen Dynamic Wallpaper Layer -->
+                    <div id="lock-wallpaper-layer" class="absolute inset-0 z-0 pointer-events-none"></div>
+                    <div class="absolute inset-0 z-0 bg-black/25 pointer-events-none"></div>
+
+                    <div class="relative z-10 text-center mt-4">
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/35 backdrop-blur-sm text-xs font-medium mb-4 border border-white/15">
+                            <i class="fa-solid fa-lock text-amber-300"></i> Οθόνη Κλειδώματος
+                        </div>
+                        <div id="lock-time" class="text-6xl font-extrabold tracking-tight drop-shadow">09:30</div>
+                        <p class="text-sm text-white/90 mt-2 font-medium drop-shadow">Τρίτη, 24 Νοεμβρίου</p>
+                    </div>
+
+                    <!-- Optional PIN Entry if enabled in Security Settings -->
+                    <div id="lock-pin-box" class="relative z-10 hidden w-full max-w-[260px] bg-slate-900/75 backdrop-blur-md rounded-2xl p-4 text-center border border-white/25">
+                        <p id="lock-pin-prompt" class="text-xs font-semibold mb-2">Εισάγετε PIN (Προεπιλογή: 1234)</p>
+                        <input id="lock-pin-input" type="password" maxlength="4" placeholder="••••" class="w-full text-center text-xl tracking-[0.5em] py-2 rounded-xl bg-slate-950/80 border border-white/30 text-white focus:outline-none mb-2">
+                        <p id="lock-pin-error" class="hidden text-xs text-rose-300 mb-2">Λάθος PIN. Δοκιμάστε ξανά!</p>
+                        <button onclick="verifyPinAndUnlock()" class="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 font-bold text-sm transition">
+                            Επιβεβαίωση
+                        </button>
+                    </div>
+
+                    <!-- Unlock Action Button -->
+                    <div class="relative z-10 w-full flex flex-col items-center gap-3">
+                        <button id="unlock-btn" data-target="unlock-btn" onclick="handleUnlock()"
+                                class="w-full py-4 px-6 rounded-2xl bg-white/95 text-slate-900 hover:bg-white font-bold text-base shadow-lg flex items-center justify-center gap-3 transition transform active:scale-95">
+                            <i class="fa-solid fa-lock-open accent-text text-lg"></i>
+                            <span>Ξεκλείδωμα Οθόνης</span>
+                        </button>
+                        <p class="text-xs text-white/90 text-center drop-shadow">Πάτησε το κουμπί για να μπεις στην Αρχική Οθόνη</p>
+                    </div>
+                </div>
+
+                <!-- MAIN SCREEN CONTENT AREA (Home Screen + Apps) -->
+                <div id="main-viewport" class="relative flex-1 overflow-y-auto phone-scroll flex flex-col">
+                    
+                    <!-- ==================== 1. HOME SCREEN ==================== -->
+                    <div id="view-home" class="relative flex-1 flex flex-col justify-between p-5 pt-3 transition-colors overflow-hidden" style="background: linear-gradient(180deg, #e0f2fe, #eff6ff, #e0e7ff);">
+                        <!-- Home Screen Dynamic Wallpaper Layer -->
+                        <div id="home-wallpaper-layer" class="absolute inset-0 z-0 pointer-events-none"></div>
+
+                        <!-- Weather & Search Educational Widget -->
+                        <div class="relative z-10 space-y-2.5">
+                            <div class="bg-white/85 backdrop-blur-md rounded-2xl p-3.5 shadow-sm border border-white/90 flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-500">Αθήνα • Σήμερα</p>
+                                    <p class="text-2xl font-extrabold text-slate-800">18°C</p>
+                                    <p class="text-xs accent-text font-medium">Ηλιοφάνεια</p>
+                                </div>
+                                <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-500 flex items-center justify-center text-2xl">
+                                    <i class="fa-solid fa-sun"></i>
+                                </div>
+                            </div>
+
+                            <!-- Quick Tip Banner -->
+                            <div class="accent-bg text-white rounded-2xl p-2.5 shadow-sm flex items-center gap-2.5 transition-colors">
+                                <i class="fa-solid fa-circle-info text-base shrink-0"></i>
+                                <p class="text-xs leading-snug">Πάτησε πάνω σε οποιοδήποτε εικονίδιο για να ανοίξεις την εφαρμογή.</p>
+                            </div>
+                        </div>
+
+                        <!-- Main App Icons Grid -->
+                        <div class="relative z-10 grid grid-cols-4 gap-y-4 gap-x-2 my-auto py-3">
+                            <!-- Phone -->
+                            <button data-target="app-phone" onclick="openApp('phone')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-emerald-500 group-hover:bg-emerald-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-phone"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Τηλέφωνο</span>
+                            </button>
+
+                            <!-- Messages -->
+                            <button data-target="app-messages" onclick="openApp('messages')" class="flex flex-col items-center gap-1 group relative">
+                                <div class="w-14 h-14 rounded-2xl bg-blue-500 group-hover:bg-blue-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-comment-dots"></i>
+                                </div>
+                                <span id="msg-badge" class="absolute -top-1 right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">1</span>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Μηνύματα</span>
+                            </button>
+
+                            <!-- Contacts -->
+                            <button data-target="app-contacts" onclick="openApp('contacts')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-orange-500 group-hover:bg-orange-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-address-book"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Επαφές</span>
+                            </button>
+
+                            <!-- Camera -->
+                            <button data-target="app-camera" onclick="openApp('camera')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-slate-700 group-hover:bg-slate-800 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-camera"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Κάμερα</span>
+                            </button>
+
+                            <!-- Gallery (Συλλογή) -->
+                            <button data-target="app-gallery" onclick="openApp('gallery')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-pink-500 group-hover:bg-pink-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-images"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Συλλογή</span>
+                            </button>
+
+                            <!-- Maps -->
+                            <button data-target="app-maps" onclick="openApp('maps')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-teal-500 group-hover:bg-teal-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Χάρτες</span>
+                            </button>
+
+                            <!-- Calculator -->
+                            <button data-target="app-calculator" onclick="openApp('calculator')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl bg-amber-500 group-hover:bg-amber-600 text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-calculator"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Αριθμ/νή</span>
+                            </button>
+
+                            <!-- Settings -->
+                            <button data-target="app-settings" onclick="openApp('settings')" class="flex flex-col items-center gap-1 group">
+                                <div class="w-14 h-14 rounded-2xl accent-bg accent-hover text-white flex items-center justify-center text-xl shadow-md transition transform group-active:scale-95">
+                                    <i class="fa-solid fa-gear"></i>
+                                </div>
+                                <span class="text-[11px] font-bold text-center leading-tight px-1.5 py-0.5 rounded-md bg-white/75 text-slate-900 backdrop-blur-sm">Ρυθμίσεις</span>
+                            </button>
+                        </div>
+
+                        <!-- Bottom Dock Bar -->
+                        <div class="relative z-10 bg-white/75 backdrop-blur-md rounded-3xl p-2 flex items-center justify-around border border-white/90 shadow-sm">
+                            <button onclick="openApp('phone')" class="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-lg shadow-sm" title="Τηλέφωνο">
+                                <i class="fa-solid fa-phone"></i>
+                            </button>
+                            <button onclick="openApp('messages')" class="w-11 h-11 rounded-2xl bg-blue-500 text-white flex items-center justify-center text-lg shadow-sm" title="Μηνύματα">
+                                <i class="fa-solid fa-comment-dots"></i>
+                            </button>
+                            <button onclick="openApp('gallery')" class="w-11 h-11 rounded-2xl bg-pink-500 text-white flex items-center justify-center text-lg shadow-sm" title="Συλλογή">
+                                <i class="fa-solid fa-images"></i>
+                            </button>
+                            <button onclick="openApp('settings')" class="w-11 h-11 rounded-2xl accent-bg text-white flex items-center justify-center text-lg shadow-sm" title="Ρυθμίσεις">
+                                <i class="fa-solid fa-gear"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 2. PHONE APP ==================== -->
+                    <div id="view-phone" class="hidden flex-1 flex flex-col p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-xl font-extrabold flex items-center gap-2">
+                                <i class="fa-solid fa-phone text-emerald-600"></i> Τηλέφωνο
+                            </h2>
+                            <div class="flex bg-slate-200/80 p-1 rounded-xl text-xs font-bold">
+                                <button id="phone-tab-keypad" onclick="switchPhoneTab('keypad')" class="px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm">Πληκτρολόγιο</button>
+                                <button id="phone-tab-recents" onclick="switchPhoneTab('recents')" class="px-3 py-1.5 rounded-lg text-slate-600">Πρόσφατα</button>
+                            </div>
+                        </div>
+
+                        <!-- Dial Pad Tab -->
+                        <div id="phone-keypad-panel" class="flex-1 flex flex-col justify-between">
+                            <!-- Number Display -->
+                            <div class="bg-slate-200/70 rounded-2xl p-3 flex items-center justify-between min-h-[60px] mb-2">
+                                <span id="dial-display" class="text-2xl font-extrabold tracking-wider pl-2 overflow-x-auto"></span>
+                                <button onclick="backspaceDial()" class="p-2.5 text-slate-500 hover:text-rose-600 text-lg" title="Διαγραφή">
+                                    <i class="fa-solid fa-delete-left"></i>
+                                </button>
+                            </div>
+
+                            <!-- 1-9, *, 0, # Keypad -->
+                            <div class="grid grid-cols-3 gap-2.5 my-auto" data-target="phone-keypad">
+                                <button onclick="pressDial('1')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">1</span>
+                                    <span class="text-[9px] text-slate-400">_</span>
+                                </button>
+                                <button onclick="pressDial('2')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">2</span>
+                                    <span class="text-[9px] text-slate-400">ΑΒΓ</span>
+                                </button>
+                                <button onclick="pressDial('3')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">3</span>
+                                    <span class="text-[9px] text-slate-400">ΔΕΖ</span>
+                                </button>
+                                <button onclick="pressDial('4')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">4</span>
+                                    <span class="text-[9px] text-slate-400">ΗΘΙ</span>
+                                </button>
+                                <button onclick="pressDial('5')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">5</span>
+                                    <span class="text-[9px] text-slate-400">ΚΛΜ</span>
+                                </button>
+                                <button onclick="pressDial('6')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">6</span>
+                                    <span class="text-[9px] text-slate-400">ΝΞΟ</span>
+                                </button>
+                                <button onclick="pressDial('7')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">7</span>
+                                    <span class="text-[9px] text-slate-400">ΠΡΣ</span>
+                                </button>
+                                <button onclick="pressDial('8')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">8</span>
+                                    <span class="text-[9px] text-slate-400">ΤΥΦ</span>
+                                </button>
+                                <button onclick="pressDial('9')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">9</span>
+                                    <span class="text-[9px] text-slate-400">ΧΨΩ</span>
+                                </button>
+                                <button onclick="pressDial('*')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center justify-center">
+                                    <span class="text-xl font-bold">*</span>
+                                </button>
+                                <button onclick="pressDial('0')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center">
+                                    <span class="text-xl font-bold">0</span>
+                                    <span class="text-[9px] text-slate-400">+</span>
+                                </button>
+                                <button onclick="pressDial('#')" class="py-3 rounded-2xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 active:scale-95 transition flex flex-col items-center justify-center">
+                                    <span class="text-xl font-bold">#</span>
+                                </button>
+                            </div>
+
+                            <!-- Green Call Button -->
+                            <button id="call-start-btn" data-target="call-start-btn" onclick="startCall()" class="mt-3 w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base shadow-md flex items-center justify-center gap-2 transition active:scale-95">
+                                <i class="fa-solid fa-phone"></i>
+                                <span>Κλήση</span>
+                            </button>
+                        </div>
+
+                        <!-- Recent Calls Tab -->
+                        <div id="phone-recents-panel" class="hidden flex-1 overflow-y-auto space-y-2.5 pt-1">
+                            <!-- Populated via JS -->
+                        </div>
+
+                        <!-- Active Calling Overlay -->
+                        <div id="active-call-screen" class="hidden absolute inset-0 z-30 bg-gradient-to-b from-emerald-800 to-slate-900 text-white p-6 flex flex-col items-center justify-between">
+                            <div class="text-center mt-8">
+                                <div class="w-24 h-24 rounded-full bg-white/15 mx-auto flex items-center justify-center text-4xl mb-4 animate-pulse">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <h3 id="call-contact-name" class="text-2xl font-extrabold">Κλήση...</h3>
+                                <p id="call-contact-number" class="text-emerald-200 text-sm mt-1">690 000 0000</p>
+                                <p id="call-timer" class="text-sm font-mono bg-black/25 px-3 py-1 rounded-full inline-block mt-3">Γίνεται κλήση...</p>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4 w-full max-w-[260px]">
+                                <button onclick="toggleCallOption(this)" class="p-3 rounded-2xl bg-white/10 hover:bg-white/20 flex flex-col items-center gap-1 text-xs">
+                                    <i class="fa-solid fa-microphone-slash text-lg"></i>
+                                    <span>Σίγαση</span>
+                                </button>
+                                <button onclick="toggleCallOption(this)" class="p-3 rounded-2xl bg-white/10 hover:bg-white/20 flex flex-col items-center gap-1 text-xs">
+                                    <i class="fa-solid fa-volume-high text-lg"></i>
+                                    <span>Ανοιχτή</span>
+                                </button>
+                                <button onclick="toggleCallOption(this)" class="p-3 rounded-2xl bg-white/10 hover:bg-white/20 flex flex-col items-center gap-1 text-xs">
+                                    <i class="fa-solid fa-grip text-lg"></i>
+                                    <span>Πλήκτρα</span>
+                                </button>
+                            </div>
+
+                            <button data-target="end-call-btn" onclick="endCall()" class="w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-2xl shadow-lg flex items-center justify-center transition transform active:scale-95 mb-4" title="Τερματισμός Κλήσης">
+                                <i class="fa-solid fa-phone-slash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 3. MESSAGES APP ==================== -->
+                    <div id="view-messages" class="hidden flex-1 flex flex-col p-4">
+                        <!-- Conversation List View -->
+                        <div id="msg-list-view" class="flex-1 flex flex-col">
+                            <div class="flex items-center justify-between mb-3">
+                                <h2 class="text-xl font-extrabold flex items-center gap-2">
+                                    <i class="fa-solid fa-comment-dots text-blue-600"></i> Μηνύματα
+                                </h2>
+                                <button data-target="new-msg-btn" onclick="openNewMessageComposer()" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-pen-to-square"></i> Νέο SMS
+                                </button>
+                            </div>
+                            <div id="conversations-container" class="space-y-2.5 overflow-y-auto flex-1">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Active Chat Thread View -->
+                        <div id="msg-chat-view" class="hidden flex-1 flex flex-col">
+                            <div class="flex items-center gap-2 pb-3 border-b border-slate-200 mb-3">
+                                <button onclick="closeChatThread()" class="p-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700">
+                                    <i class="fa-solid fa-arrow-left"></i>
+                                </button>
+                                <div>
+                                    <h3 id="chat-recipient-name" class="font-bold text-base">Μαμά</h3>
+                                    <p id="chat-recipient-phone" class="text-xs text-slate-500">697 123 4567</p>
+                                </div>
+                            </div>
+
+                            <div id="chat-bubbles" class="flex-1 overflow-y-auto space-y-2.5 p-1 mb-3">
+                                <!-- Chat bubbles injected here -->
+                            </div>
+
+                            <!-- Quick Suggested Replies for Easy Classroom Use -->
+                            <div class="flex gap-1.5 overflow-x-auto pb-2 mb-1">
+                                <button onclick="fillQuickReply('Καλημέρα! Έφτασα στο σχολείο.')" class="shrink-0 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200">Καλημέρα! Έφτασα.</button>
+                                <button onclick="fillQuickReply('Εντάξει, ευχαριστώ!')" class="shrink-0 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200">Εντάξει, ευχαριστώ!</button>
+                                <button onclick="fillQuickReply('Θα σε πάρω τηλέφωνο αργότερα.')" class="shrink-0 px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200">Θα σε πάρω αργότερα.</button>
+                            </div>
+
+                            <!-- Message Input -->
+                            <div class="flex items-center gap-2">
+                                <input id="chat-input" data-target="chat-input" type="text" placeholder="Γράψε μήνυμα..." class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm focus:outline-none focus:border-blue-500">
+                                <button id="chat-send-btn" data-target="chat-send-btn" onclick="sendSmsMessage()" class="p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 4. CONTACTS APP ==================== -->
+                    <div id="view-contacts" class="hidden flex-1 flex flex-col p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-xl font-extrabold flex items-center gap-2">
+                                <i class="fa-solid fa-address-book text-orange-500"></i> Επαφές
+                            </h2>
+                            <button id="add-contact-open-btn" data-target="add-contact-btn" onclick="toggleAddContactForm(true)" class="px-3 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-user-plus"></i> Νέα Επαφή
+                            </button>
+                        </div>
+
+                        <!-- Add Contact Form (Toggleable) -->
+                        <div id="add-contact-form" class="hidden bg-orange-50 border border-orange-200 rounded-2xl p-3.5 mb-3 space-y-2.5">
+                            <p class="text-xs font-bold text-orange-800">Προσθήκη Νέας Επαφής</p>
+                            <input id="new-contact-name" data-target="new-contact-name" type="text" placeholder="Όνομα (π.χ. Δάσκαλος)" class="w-full px-3 py-2 rounded-xl border border-orange-300 bg-white text-slate-900 text-sm">
+                            <input id="new-contact-phone" data-target="new-contact-phone" type="tel" placeholder="Τηλέφωνο (π.χ. 6945556677)" class="w-full px-3 py-2 rounded-xl border border-orange-300 bg-white text-slate-900 text-sm">
+                            <div class="flex gap-2">
+                                <button id="save-contact-btn" data-target="save-contact-btn" onclick="saveNewContact()" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">Αποθήκευση</button>
+                                <button onclick="toggleAddContactForm(false)" class="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Άκυρο</button>
+                            </div>
+                        </div>
+
+                        <!-- Contacts List -->
+                        <div id="contacts-list" class="flex-1 overflow-y-auto space-y-2">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- ==================== 5. CAMERA APP ==================== -->
+                    <div id="view-camera" class="hidden flex-1 flex flex-col bg-slate-950 text-white p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-camera text-blue-400"></i> Κάμερα</span>
+                            <button onclick="switchCameraScene()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs flex items-center gap-1">
+                                <i class="fa-solid fa-rotate"></i> Αλλαγή Σκηνής
+                            </button>
+                        </div>
+
+                        <!-- Simulated Viewfinder -->
+                        <div id="camera-viewfinder" class="relative flex-1 rounded-3xl overflow-hidden border-2 border-slate-700 flex flex-col items-center justify-center bg-gradient-to-b from-sky-400 via-sky-200 to-emerald-500 transition-all">
+                            <!-- Simulated Classroom / Park SVG Scene -->
+                            <div id="camera-scene-content" class="text-center p-4">
+                                <i class="fa-solid fa-school text-6xl text-slate-800 drop-shadow mb-2"></i>
+                                <p class="bg-black/50 text-white text-xs px-3 py-1 rounded-full font-semibold">Σχολική Αυλή • Εστίαση Έτοιμη</p>
+                            </div>
+
+                            <!-- Viewfinder Focus Frame -->
+                            <div class="w-36 h-36 border-2 border-amber-300/80 rounded-2xl pointer-events-none absolute"></div>
+
+                            <!-- Camera Shutter Flash Effect -->
+                            <div id="camera-flash-fx" class="pointer-events-none absolute inset-0 bg-white opacity-0 transition-opacity duration-150"></div>
+                        </div>
+
+                        <!-- Camera Controls & Gallery Preview -->
+                        <div class="pt-4 pb-1 flex items-center justify-between px-3">
+                            <!-- Last Photo Thumbnail -->
+                            <button onclick="openApp('gallery')" class="w-12 h-12 rounded-xl bg-slate-800 border-2 border-slate-600 overflow-hidden flex items-center justify-center relative" title="Συλλογή Φωτογραφιών">
+                                <i id="gallery-thumb-icon" class="fa-solid fa-images text-slate-400"></i>
+                                <span id="photo-count-badge" class="absolute -top-1 -right-1 bg-blue-600 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">6</span>
+                            </button>
+
+                            <!-- Shutter Button -->
+                            <button id="shutter-btn" data-target="shutter-btn" onclick="takePhoto()" class="w-16 h-16 rounded-full bg-white p-1 shadow-lg active:scale-90 transition flex items-center justify-center" title="Λήψη Φωτογραφίας">
+                                <div class="w-full h-full rounded-full border-4 border-slate-900 bg-white"></div>
+                            </button>
+
+                            <div class="w-12 text-center text-[11px] text-slate-400">ΦΩΤΟ</div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 5B. GALLERY APP (ΣΥΛΛΟΓΗ) ==================== -->
+                    <div id="view-gallery" class="hidden flex-1 flex flex-col p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-xl font-extrabold flex items-center gap-2">
+                                <i class="fa-solid fa-images text-pink-500"></i> Συλλογή
+                            </h2>
+                            <button onclick="openApp('camera')" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-camera"></i> Κάμερα
+                            </button>
+                        </div>
+
+                        <!-- Filter Tabs -->
+                        <div class="flex bg-slate-200/80 p-1 rounded-xl text-xs font-bold mb-3">
+                            <button id="gal-tab-all" onclick="switchGalleryTab('all')" class="flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm">Όλες</button>
+                            <button id="gal-tab-camera" onclick="switchGalleryTab('camera')" class="flex-1 py-1.5 rounded-lg text-slate-600">Κάμερα</button>
+                            <button id="gal-tab-fav" onclick="switchGalleryTab('fav')" class="flex-1 py-1.5 rounded-lg text-slate-600">Αγαπημένα ❤️</button>
+                        </div>
+
+                        <!-- Photo Grid -->
+                        <div id="gallery-app-grid" data-target="gallery-grid" class="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pr-0.5">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Full-Screen Photo Viewer Modal -->
+                        <div id="photo-viewer-modal" class="hidden absolute inset-0 z-30 bg-slate-950 text-white p-4 flex flex-col justify-between">
+                            <!-- Viewer Header -->
+                            <div class="flex items-center justify-between">
+                                <button onclick="closePhotoViewer()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrow-left"></i> Πίσω
+                                </button>
+                                <div class="text-center">
+                                    <p id="viewer-photo-title" class="text-sm font-bold">Τίτλος</p>
+                                    <p id="viewer-photo-meta" class="text-[10px] text-slate-400">Ημερομηνία</p>
+                                </div>
+                                <button id="viewer-fav-btn" onclick="toggleViewerFavorite()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-lg" title="Αγαπημένο">
+                                    <i class="fa-regular fa-heart"></i>
+                                </button>
+                            </div>
+
+                            <!-- Large Photo Preview -->
+                            <div id="viewer-photo-canvas" class="my-3 flex-1 rounded-3xl overflow-hidden border-2 border-slate-700 shadow-xl flex items-center justify-center relative">
+                                <!-- SVG Illustration rendered here -->
+                            </div>
+
+                            <!-- Wallpaper Target Picker (Hidden until "Ορισμός ως Ταπετσαρία" is clicked) -->
+                            <div id="wallpaper-target-box" class="hidden bg-slate-900 border border-slate-700 rounded-2xl p-3 mb-2 space-y-2">
+                                <p class="text-xs font-bold text-center text-amber-300">Πού θέλετε να οριστεί ως ταπετσαρία;</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button data-target="wp-apply-home" onclick="applyPhotoAsWallpaper('home')" class="py-2 px-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px]">Αρχική Οθόνη</button>
+                                    <button onclick="applyPhotoAsWallpaper('lock')" class="py-2 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px]">Κλείδωμα</button>
+                                    <button onclick="applyPhotoAsWallpaper('both')" class="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px]">Και στα δύο</button>
+                                </div>
+                            </div>
+
+                            <!-- Delete Confirmation Box -->
+                            <div id="delete-photo-confirm" class="hidden bg-rose-950/90 border border-rose-700 rounded-2xl p-3 mb-2 flex items-center justify-between">
+                                <span class="text-xs font-bold text-rose-200">Διαγραφή φωτογραφίας;</span>
+                                <div class="flex gap-2">
+                                    <button onclick="confirmDeletePhoto()" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold">Ναι, διαγραφή</button>
+                                    <button onclick="document.getElementById('delete-photo-confirm').classList.add('hidden')" class="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-bold">Άκυρο</button>
+                                </div>
+                            </div>
+
+                            <!-- Viewer Action Bar -->
+                            <div class="grid grid-cols-3 gap-2 pt-1">
+                                <button id="viewer-set-wp-btn" data-target="viewer-set-wp-btn" onclick="toggleWallpaperTargetBox()" class="col-span-2 py-3 px-3 rounded-2xl accent-bg accent-hover text-white font-bold text-xs flex items-center justify-center gap-2 shadow">
+                                    <i class="fa-solid fa-panorama"></i>
+                                    <span>Ορισμός ως Ταπετσαρία</span>
+                                </button>
+                                <button onclick="promptDeletePhoto()" class="py-3 px-3 rounded-2xl bg-slate-800 hover:bg-rose-900/70 text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-trash"></i>
+                                    <span>Διαγραφή</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 6. MAPS APP ==================== -->
+                    <div id="view-maps" class="hidden flex-1 flex flex-col p-4">
+                        <h2 class="text-xl font-extrabold flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-map-location-dot text-teal-600"></i> Χάρτες
+                        </h2>
+                        <div class="flex gap-2 mb-3">
+                            <select id="map-destination" onchange="updateMapDestination()" class="flex-1 px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 text-sm font-semibold">
+                                <option value="school">🏫 Δημοτικό Σχολείο</option>
+                                <option value="park">🌳 Πάρκο & Παιδική Χαρά</option>
+                                <option value="library">📚 Δημοτική Βιβλιοθήκη</option>
+                                <option value="hospital">🏥 Κέντρο Υγείας</option>
+                            </select>
+                        </div>
+
+                        <!-- Interactive SVG Map Display -->
+                        <div class="relative flex-1 rounded-2xl bg-emerald-50 border-2 border-teal-200 overflow-hidden flex flex-col justify-between p-3">
+                            <svg viewBox="0 0 300 260" class="w-full h-full">
+                                <!-- Roads -->
+                                <path d="M 20 220 L 140 220 L 140 120 L 260 120 L 260 40" stroke="#cbd5e1" stroke-width="18" fill="none" stroke-linecap="round"/>
+                                <path id="map-route-line" d="M 40 220 L 140 220 L 140 120 L 240 120" stroke="#0d9488" stroke-width="6" stroke-dasharray="8 6" fill="none" stroke-linecap="round"/>
+                                <!-- Blocks -->
+                                <rect x="30" y="30" width="80" height="60" rx="10" fill="#bae6fd" />
+                                <rect x="170" y="150" width="90" height="70" rx="10" fill="#bbf7d0" />
+                                <!-- Start Pin (User) -->
+                                <circle cx="40" cy="220" r="10" fill="#2563eb" />
+                                <text x="22" y="245" font-size="11" font-weight="bold" fill="#1e3a8a">Εσύ</text>
+                                <!-- Destination Pin -->
+                                <g id="map-dest-pin" transform="translate(240, 120)">
+                                    <circle cx="0" cy="0" r="12" fill="#e11d48" />
+                                    <circle cx="0" cy="0" r="4" fill="#ffffff" />
+                                </g>
+                            </svg>
+
+                            <div class="bg-white/95 rounded-xl p-3 shadow-sm border border-teal-100 flex items-center justify-between">
+                                <div>
+                                    <p id="map-dest-title" class="font-bold text-sm text-slate-900">Δημοτικό Σχολείο</p>
+                                    <p id="map-dest-info" class="text-xs text-slate-500">Απόσταση: 450 μέτρα • 6 λεπτά με τα πόδια</p>
+                                </div>
+                                <span class="px-2.5 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-bold">
+                                    <i class="fa-solid fa-person-walking"></i> Πορεία
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 7. CALCULATOR APP ==================== -->
+                    <div id="view-calculator" class="hidden flex-1 flex flex-col p-4">
+                        <h2 class="text-xl font-extrabold flex items-center gap-2 mb-3">
+                            <i class="fa-solid fa-calculator text-amber-500"></i> Αριθμομηχανή
+                        </h2>
+                        <div class="bg-slate-900 text-white rounded-2xl p-4 text-right mb-3">
+                            <p id="calc-history" class="text-xs text-slate-400 h-4"></p>
+                            <p id="calc-display" class="text-3xl font-extrabold tracking-wide overflow-x-auto">0</p>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 flex-1">
+                            <button onclick="calcClear()" class="col-span-2 rounded-2xl bg-rose-100 text-rose-700 font-extrabold text-lg hover:bg-rose-200">C (Καθαρισμός)</button>
+                            <button onclick="calcInput('/')" class="rounded-2xl bg-amber-100 text-amber-800 font-extrabold text-xl hover:bg-amber-200">÷</button>
+                            <button onclick="calcInput('*')" class="rounded-2xl bg-amber-100 text-amber-800 font-extrabold text-xl hover:bg-amber-200">×</button>
+
+                            <button onclick="calcInput('7')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">7</button>
+                            <button onclick="calcInput('8')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">8</button>
+                            <button onclick="calcInput('9')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">9</button>
+                            <button onclick="calcInput('-')" class="rounded-2xl bg-amber-100 text-amber-800 font-extrabold text-xl hover:bg-amber-200">−</button>
+
+                            <button onclick="calcInput('4')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">4</button>
+                            <button onclick="calcInput('5')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">5</button>
+                            <button onclick="calcInput('6')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">6</button>
+                            <button onclick="calcInput('+')" class="rounded-2xl bg-amber-100 text-amber-800 font-extrabold text-xl hover:bg-amber-200">+</button>
+
+                            <button onclick="calcInput('1')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">1</button>
+                            <button onclick="calcInput('2')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">2</button>
+                            <button onclick="calcInput('3')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">3</button>
+                            <button onclick="calcEquals()" class="row-span-2 rounded-2xl bg-emerald-600 text-white font-extrabold text-2xl hover:bg-emerald-700">=</button>
+
+                            <button onclick="calcInput('0')" class="col-span-2 rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">0</button>
+                            <button onclick="calcInput('.')" class="rounded-2xl bg-white border border-slate-200 font-bold text-xl hover:bg-slate-100">.</button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 8. SETTINGS APP ==================== -->
+                    <div id="view-settings" class="hidden flex-1 flex flex-col p-4 overflow-y-auto">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 id="settings-header-title" class="text-xl font-extrabold flex items-center gap-2">
+                                <i class="fa-solid fa-gear accent-text"></i> Ρυθμίσεις
+                            </h2>
+                            <button id="settings-back-sub" onclick="showSettingsMenu()" class="hidden px-2.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold">
+                                <i class="fa-solid fa-arrow-left mr-1"></i> Όλες
+                            </button>
+                        </div>
+
+                        <!-- Main Settings Categories List -->
+                        <div id="settings-main-menu" class="space-y-2.5">
+                            <!-- Themes & Wallpaper (NEW) -->
+                            <button data-target="set-themes-item" onclick="openSettingsSub('themes')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-lg"><i class="fa-solid fa-palette"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Θέματα & Ταπετσαρία</p>
+                                        <p id="set-theme-subtext" class="text-xs text-slate-500">Χρώμα θέματος, ταπετσαρία, σκούρο</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Wi-Fi -->
+                            <button data-target="set-wifi-item" onclick="openSettingsSub('wifi')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg"><i class="fa-solid fa-wifi"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Wi-Fi</p>
+                                        <p id="set-wifi-subtext" class="text-xs text-slate-500">Ανενεργό</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Bluetooth -->
+                            <button data-target="set-bt-item" onclick="openSettingsSub('bt')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg"><i class="fa-brands fa-bluetooth-b"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Bluetooth</p>
+                                        <p id="set-bt-subtext" class="text-xs text-slate-500">Ανενεργό</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Display & Accessibility -->
+                            <button data-target="set-display-item" onclick="openSettingsSub('display')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg"><i class="fa-solid fa-sun"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Οθόνη & Προσβασιμότητα</p>
+                                        <p class="text-xs text-slate-500">Φωτεινότητα, γραμματοσειρά, έντονα</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Sound & Vibration -->
+                            <button data-target="set-sound-item" onclick="openSettingsSub('sound')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg"><i class="fa-solid fa-volume-high"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Ήχος & Δόνηση</p>
+                                        <p id="set-sound-subtext" class="text-xs text-slate-500">Ήχος • Μελωδία: Κλασικό</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Battery (NEW) -->
+                            <button data-target="set-battery-item" onclick="openSettingsSub('battery')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-lime-100 text-lime-700 flex items-center justify-center text-lg"><i class="fa-solid fa-battery-three-quarters"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Μπαταρία</p>
+                                        <p id="set-battery-subtext" class="text-xs text-slate-500">85% • Εξοικονόμηση: Ανενεργή</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- Security & Privacy -->
+                            <button data-target="set-security-item" onclick="openSettingsSub('security')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-lg"><i class="fa-solid fa-shield-halved"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Ασφάλεια & Απόρρητο</p>
+                                        <p class="text-xs text-slate-500">PIN οθόνης & άδειες εφαρμογών</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+
+                            <!-- About Phone -->
+                            <button data-target="set-about-item" onclick="openSettingsSub('about')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-10 h-10 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-lg"><i class="fa-solid fa-circle-info"></i></span>
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Πληροφορίες τηλεφώνου</p>
+                                        <p class="text-xs text-slate-500">Μοντέλο, αποθήκευση & επαναφορά</p>
+                                    </div>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-slate-400"></i>
+                            </button>
+                        </div>
+
+                        <!-- Sub-panel: Themes & Wallpaper (NEW) -->
+                        <div id="settings-sub-themes" class="hidden space-y-3 pb-4">
+                            <!-- Accent Color Picker -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200" data-target="theme-color-picker">
+                                <p class="text-sm font-bold text-slate-900 mb-2.5">Χρώμα Θέματος (UI Accent)</p>
+                                <div class="grid grid-cols-5 gap-2">
+                                    <button onclick="setAccentTheme('blue')" id="theme-btn-blue" class="flex flex-col items-center gap-1 p-1.5 rounded-xl border-2 border-blue-600 bg-blue-50">
+                                        <span class="w-7 h-7 rounded-full bg-blue-600 block shadow-sm"></span>
+                                        <span class="text-[10px] font-bold text-slate-800">Μπλε</span>
+                                    </button>
+                                    <button onclick="setAccentTheme('emerald')" id="theme-btn-emerald" class="flex flex-col items-center gap-1 p-1.5 rounded-xl border border-slate-200">
+                                        <span class="w-7 h-7 rounded-full bg-emerald-600 block shadow-sm"></span>
+                                        <span class="text-[10px] font-bold text-slate-800">Πράσινο</span>
+                                    </button>
+                                    <button onclick="setAccentTheme('purple')" id="theme-btn-purple" class="flex flex-col items-center gap-1 p-1.5 rounded-xl border border-slate-200">
+                                        <span class="w-7 h-7 rounded-full bg-purple-600 block shadow-sm"></span>
+                                        <span class="text-[10px] font-bold text-slate-800">Μωβ</span>
+                                    </button>
+                                    <button onclick="setAccentTheme('orange')" id="theme-btn-orange" class="flex flex-col items-center gap-1 p-1.5 rounded-xl border border-slate-200">
+                                        <span class="w-7 h-7 rounded-full bg-orange-500 block shadow-sm"></span>
+                                        <span class="text-[10px] font-bold text-slate-800">Πορτοκαλί</span>
+                                    </button>
+                                    <button onclick="setAccentTheme('pink')" id="theme-btn-pink" class="flex flex-col items-center gap-1 p-1.5 rounded-xl border border-slate-200">
+                                        <span class="w-7 h-7 rounded-full bg-pink-500 block shadow-sm"></span>
+                                        <span class="text-[10px] font-bold text-slate-800">Ροζ</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Dark / Light Mode Toggle -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="font-bold text-sm text-slate-900">Σκούρο Θέμα (Dark Mode)</p>
+                                    <p class="text-xs text-slate-500">Σκούρο φόντο στα μενού</p>
+                                </div>
+                                <button id="dark-mode-switch" onclick="toggleDarkMode()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                </button>
+                            </div>
+
+                            <!-- Wallpaper Picker -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5" data-target="theme-wallpaper-picker">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-sm font-bold text-slate-900">Επιλογή Ταπετσαρίας</p>
+                                    <button onclick="openApp('gallery')" class="text-xs font-bold accent-text hover:underline">Από Συλλογή →</button>
+                                </div>
+                                <div id="settings-wallpaper-grid" class="grid grid-cols-3 gap-2">
+                                    <!-- Populated dynamically with preset wallpapers + gallery photos -->
+                                </div>
+                                <div class="grid grid-cols-3 gap-1.5 pt-1">
+                                    <button onclick="applySelectedSettingsWallpaper('home')" class="py-2 rounded-xl accent-bg text-white font-bold text-[11px]">Αρχική</button>
+                                    <button onclick="applySelectedSettingsWallpaper('lock')" class="py-2 rounded-xl bg-slate-800 text-white font-bold text-[11px]">Κλείδωμα</button>
+                                    <button onclick="applySelectedSettingsWallpaper('both')" class="py-2 rounded-xl bg-emerald-600 text-white font-bold text-[11px]">Και στα δύο</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Wi-Fi -->
+                        <div id="settings-sub-wifi" class="hidden space-y-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <span class="font-bold text-sm text-slate-900">Χρήση Wi-Fi</span>
+                                <button id="set-wifi-switch" data-target="set-wifi-switch" onclick="toggleWifi()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                </button>
+                            </div>
+                            <div id="wifi-networks-box" class="hidden space-y-2">
+                                <p class="text-xs font-bold text-slate-500 px-1">Διαθέσιμα Δίκτυα:</p>
+                                <button data-target="wifi-net-school" onclick="promptWifiConnect('Σχολικό_Δίκτυο_WiFi', false)" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between hover:bg-blue-50 text-left">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-wifi text-blue-600"></i>
+                                        <div>
+                                            <p class="font-bold text-sm text-slate-900">Σχολικό_Δίκτυο_WiFi</p>
+                                            <p id="wifi-status-school" class="text-xs text-slate-500">Πάτησε για σύνδεση</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-lock text-xs text-slate-400"></i>
+                                </button>
+                                <button onclick="promptWifiConnect('Σπίτι_5G', true)" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between hover:bg-blue-50 text-left">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-wifi text-slate-600"></i>
+                                        <div>
+                                            <p class="font-bold text-sm text-slate-900">Σπίτι_5G</p>
+                                            <p id="wifi-status-home" class="text-xs text-slate-500">Προστατευμένο με κωδικό</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-key text-xs text-amber-500"></i>
+                                </button>
+                                <button onclick="promptWifiConnect('Βιβλιοθήκη_Free', false)" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between hover:bg-blue-50 text-left">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="fa-solid fa-wifi text-emerald-600"></i>
+                                        <div>
+                                            <p class="font-bold text-sm text-slate-900">Βιβλιοθήκη_Free</p>
+                                            <p id="wifi-status-lib" class="text-xs text-slate-500">Ανοιχτό δίκτυο</p>
+                                        </div>
+                                    </div>
+                                    <i class="fa-solid fa-lock-open text-xs text-emerald-500"></i>
+                                </button>
+
+                                <!-- Simulated Wi-Fi Password Box -->
+                                <div id="wifi-password-modal" class="hidden bg-blue-50 border border-blue-200 rounded-2xl p-3 space-y-2">
+                                    <p class="text-xs font-bold text-blue-900">Κωδικός για <span id="wifi-pass-netname">Σπίτι_5G</span> (δοκίμασε: 12345678)</p>
+                                    <input id="wifi-pass-input" type="text" value="12345678" class="w-full px-3 py-2 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-bold">
+                                    <div class="flex gap-2">
+                                        <button onclick="submitWifiPassword()" class="flex-1 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs">Σύνδεση</button>
+                                        <button onclick="document.getElementById('wifi-password-modal').classList.add('hidden')" class="px-3 py-2 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs">Άκυρο</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Bluetooth -->
+                        <div id="settings-sub-bt" class="hidden space-y-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <span class="font-bold text-sm text-slate-900">Ενεργοποίηση Bluetooth</span>
+                                <button id="set-bt-switch" onclick="toggleBluetooth()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                </button>
+                            </div>
+                            <div id="bt-devices-box" class="hidden space-y-2">
+                                <p class="text-xs font-bold text-slate-500 px-1">Κοντινές Συσκευές:</p>
+                                <button onclick="connectBtDevice('Ακουστικά Bluetooth')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-left hover:bg-indigo-50">
+                                    <span class="font-semibold text-sm text-slate-900"><i class="fa-solid fa-headphones text-indigo-500 mr-2"></i>Ακουστικά Bluetooth</span>
+                                    <span id="bt-dev-1" class="text-xs text-blue-600 font-bold">Σύνδεση</span>
+                                </button>
+                                <button onclick="connectBtDevice('Ηχείο Τάξης')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-left hover:bg-indigo-50">
+                                    <span class="font-semibold text-sm text-slate-900"><i class="fa-solid fa-volume-high text-indigo-500 mr-2"></i>Ηχείο Τάξης</span>
+                                    <span id="bt-dev-2" class="text-xs text-blue-600 font-bold">Σύνδεση</span>
+                                </button>
+                                <button onclick="connectBtDevice('SmartWatch')" class="w-full p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-left hover:bg-indigo-50">
+                                    <span class="font-semibold text-sm text-slate-900"><i class="fa-solid fa-clock text-indigo-500 mr-2"></i>SmartWatch</span>
+                                    <span id="bt-dev-3" class="text-xs text-blue-600 font-bold">Σύνδεση</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Display & Accessibility -->
+                        <div id="settings-sub-display" class="hidden space-y-3 pb-3">
+                            <!-- Brightness Slider -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200" data-target="set-brightness-box">
+                                <div class="flex justify-between text-sm font-bold text-slate-900 mb-2">
+                                    <span>Φωτεινότητα</span>
+                                    <span id="set-brightness-val">100%</span>
+                                </div>
+                                <input id="set-brightness-slider" type="range" min="25" max="100" value="100" oninput="setBrightness(this.value)" class="w-full cursor-pointer">
+                            </div>
+
+                            <!-- Font Size Selector -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200" data-target="set-font-box">
+                                <p class="text-sm font-bold text-slate-900 mb-2">Μέγεθος Γραμματοσειράς</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="setFontSize('normal')" id="font-btn-normal" class="py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-xs">Κανονικό</button>
+                                    <button onclick="setFontSize('large')" id="font-btn-large" class="py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm">Μεγάλο</button>
+                                    <button onclick="setFontSize('xlarge')" id="font-btn-xlarge" class="py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-base">Πολύ Μεγάλο</button>
+                                </div>
+                            </div>
+
+                            <!-- Bold Text / High Contrast Toggle -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="font-bold text-sm text-slate-900">Έντονα Γράμματα (Προσβασιμότητα)</p>
+                                    <p class="text-xs text-slate-500">Πιο ευανάγνωστο κείμενο παντού</p>
+                                </div>
+                                <button id="bold-text-switch" onclick="toggleBoldText()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                </button>
+                            </div>
+
+                            <!-- Screen Timeout Selector -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                                <p class="text-sm font-bold text-slate-900 mb-2">Αυτόματο Κλείδωμα Οθόνης</p>
+                                <div class="grid grid-cols-4 gap-1.5">
+                                    <button onclick="setScreenTimeout('15 δευτ.')" class="timeout-btn py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-[11px]">15 δευτ.</button>
+                                    <button onclick="setScreenTimeout('30 δευτ.')" class="timeout-btn py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-[11px]">30 δευτ.</button>
+                                    <button onclick="setScreenTimeout('1 λεπτό')" class="timeout-btn py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-[11px]">1 λεπτό</button>
+                                    <button onclick="setScreenTimeout('Ποτέ')" class="timeout-btn py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-[11px]">Ποτέ</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Sound & Vibration -->
+                        <div id="settings-sub-sound" class="hidden space-y-3 pb-3">
+                            <!-- Sound Mode Selector -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                                <p class="text-sm font-bold text-slate-900 mb-2">Λειτουργία Ήχου</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="setSoundMode('sound')" id="smode-sound" class="py-2.5 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-emerald-800 font-bold text-xs flex flex-col items-center gap-1">
+                                        <i class="fa-solid fa-volume-high text-base"></i>
+                                        <span>Ήχος</span>
+                                    </button>
+                                    <button onclick="setSoundMode('vibrate')" id="smode-vibrate" class="py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center gap-1">
+                                        <i class="fa-solid fa-mobile-screen-button text-base"></i>
+                                        <span>Δόνηση</span>
+                                    </button>
+                                    <button onclick="setSoundMode('mute')" id="smode-mute" class="py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center gap-1">
+                                        <i class="fa-solid fa-volume-xmark text-base"></i>
+                                        <span>Αθόρυβο</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Volume Slider -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                                <div class="flex justify-between text-sm font-bold text-slate-900 mb-2">
+                                    <span>Ένταση Ήχου Κλήσης</span>
+                                    <span id="set-volume-val">70%</span>
+                                </div>
+                                <input id="set-volume-slider" type="range" min="0" max="100" value="70" oninput="setVolume(this.value)" class="w-full cursor-pointer">
+                            </div>
+
+                            <!-- Ringtone Melody Selector -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                                <p class="text-sm font-bold text-slate-900">Μελωδία Κλήσης</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="selectRingtone('Κλασικό')" id="ring-Κλασικό" class="py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-xs">Κλασικό</button>
+                                    <button onclick="selectRingtone('Χαρούμενο')" id="ring-Χαρούμενο" class="py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs">Χαρούμενο</button>
+                                    <button onclick="selectRingtone('Απαλό')" id="ring-Απαλό" class="py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs">Απαλό</button>
+                                </div>
+                                <button onclick="playRingtonePreview()" class="mt-2 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                                    <i class="fa-solid fa-music mr-1"></i> Ακρόαση Μελωδίας
+                                </button>
+                            </div>
+
+                            <!-- Touch Sounds Toggle -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <span class="font-bold text-sm text-slate-900">Ήχοι Αφής Πλήκτρων</span>
+                                <button id="touch-sounds-switch" onclick="toggleTouchSounds()" class="w-14 h-8 rounded-full bg-blue-600 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform translate-x-6 transition"></div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Battery (NEW) -->
+                        <div id="settings-sub-battery" class="hidden space-y-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm font-bold text-slate-900">Επίπεδο Μπαταρίας</span>
+                                    <span class="text-xl font-extrabold text-emerald-600">85%</span>
+                                </div>
+                                <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                                    <div id="battery-gauge-bar" class="h-full bg-emerald-500 rounded-full transition-all" style="width: 85%;"></div>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2">Υπολειπόμενος χρόνος: περίπου 14 ώρες</p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <p class="font-bold text-sm text-slate-900">Εξοικονόμηση Μπαταρίας</p>
+                                    <p class="text-xs text-slate-500">Μειώνει τη φωτεινότητα για μεγαλύτερη διάρκεια</p>
+                                </div>
+                                <button id="battery-saver-switch" onclick="toggleBatterySaver()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                    <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                </button>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs text-slate-700">
+                                <p class="font-bold text-sm text-slate-900">Χρήση ανά εφαρμογή:</p>
+                                <div class="flex justify-between"><span>Οθόνη</span><span class="font-bold">42%</span></div>
+                                <div class="flex justify-between"><span>Κάμερα & Συλλογή</span><span class="font-bold">24%</span></div>
+                                <div class="flex justify-between"><span>Μηνύματα & Τηλέφωνο</span><span class="font-bold">19%</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: Security & Privacy -->
+                        <div id="settings-sub-security" class="hidden space-y-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-bold text-sm text-slate-900">Κλείδωμα με PIN</p>
+                                        <p class="text-xs text-slate-500">Τρέχον PIN: <span id="current-pin-display" class="font-bold">1234</span></p>
+                                    </div>
+                                    <button id="pin-lock-switch" onclick="togglePinLock()" class="w-14 h-8 rounded-full bg-slate-300 p-1 transition flex items-center">
+                                        <div class="w-6 h-6 rounded-full bg-white shadow transform transition"></div>
+                                    </button>
+                                </div>
+                                <div class="pt-2 border-t border-slate-100 flex items-center gap-2">
+                                    <input id="change-pin-input" type="text" maxlength="4" placeholder="Νέο 4-ψήφιο PIN" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-xs font-bold">
+                                    <button onclick="updatePinCode()" class="px-3 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs">Αλλαγή PIN</button>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs text-slate-700">
+                                <p class="font-bold text-sm text-slate-900">Άδειες Εφαρμογών:</p>
+                                <div class="flex justify-between items-center py-1"><span><i class="fa-solid fa-camera text-slate-500 mr-1.5"></i>Κάμερα</span><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Επιτρέπεται</span></div>
+                                <div class="flex justify-between items-center py-1"><span><i class="fa-solid fa-location-dot text-teal-600 mr-1.5"></i>Τοποθεσία (Χάρτες)</span><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">Μόνο κατά τη χρήση</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-panel: About Phone -->
+                        <div id="settings-sub-about" class="hidden space-y-3">
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-sm text-slate-800">
+                                <div class="flex justify-between py-1 border-b border-slate-100"><span class="text-slate-500">Όνομα Συσκευής:</span><span class="font-bold">EduPhone GR-2</span></div>
+                                <div class="flex justify-between py-1 border-b border-slate-100"><span class="text-slate-500">Έκδοση Λογισμικού:</span><span class="font-bold">Εκπαιδευτική 2.5</span></div>
+                                <div class="py-1 border-b border-slate-100">
+                                    <div class="flex justify-between mb-1"><span class="text-slate-500">Αποθηκευτικός Χώρος:</span><span id="about-storage-text" class="font-bold">16.2 GB / 64 GB</span></div>
+                                    <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                        <div class="h-full accent-bg rounded-full" style="width: 26%;"></div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between py-1"><span class="text-slate-500">Κατάσταση Μπαταρίας:</span><span class="font-bold text-emerald-600">Καλή (85%)</span></div>
+                            </div>
+
+                            <button onclick="resetSimulator()" class="w-full py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-xs flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-rotate-left"></i> Επαναφορά Εργοστασιακών Ρυθμίσεων
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ==================== 9. RECENTS OVERVIEW ==================== -->
+                    <div id="view-recents" class="hidden flex-1 flex flex-col p-4 bg-slate-900/90 text-white">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-bold">Πρόσφατες Εφαρμογές</h2>
+                            <button onclick="clearRecents()" class="px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-xs font-bold">Κλείσιμο Όλων</button>
+                        </div>
+                        <div id="recents-list" class="flex-1 overflow-y-auto space-y-2.5">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- BOTTOM NAVIGATION BAR (Back, Home, Recents) -->
+                <div class="relative z-30 h-14 bg-slate-900 text-white flex items-center justify-around px-6 border-t border-slate-800 shrink-0">
+                    <button id="nav-back" data-target="nav-back" onclick="navBack()" class="p-3 rounded-xl hover:bg-slate-800 active:scale-90 transition flex flex-col items-center gap-0.5" title="Πίσω">
+                        <i class="fa-solid fa-caret-left text-xl"></i>
+                        <span class="text-[10px] text-slate-300">Πίσω</span>
+                    </button>
+                    <button id="nav-home" data-target="nav-home" onclick="navHome()" class="p-3 rounded-xl hover:bg-slate-800 active:scale-90 transition flex flex-col items-center gap-0.5" title="Αρχική Οθόνη">
+                        <i class="fa-regular fa-circle text-lg"></i>
+                        <span class="text-[10px] text-slate-300">Αρχική</span>
+                    </button>
+                    <button id="nav-recents" data-target="nav-recents" onclick="navRecents()" class="p-3 rounded-xl hover:bg-slate-800 active:scale-90 transition flex flex-col items-center gap-0.5" title="Πρόσφατες Εφαρμογές">
+                        <i class="fa-regular fa-square text-lg"></i>
+                        <span class="text-[10px] text-slate-300">Πρόσφατα</span>
+                    </button>
+                </div>
+
+                <!-- On-Screen Toast Notification for Student Feedback -->
+                <div id="phone-toast" class="hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl border border-slate-700 whitespace-nowrap">
+                    Μήνυμα συστήματος
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR: TEACHER MODE (ΛΕΙΤΟΥΡΓΙΑ ΕΚΠΑΙΔΕΥΤΗ) -->
+    <aside id="teacher-panel" class="w-full max-w-xl bg-white rounded-3xl shadow-xl border border-slate-200 p-5 sm:p-6 flex flex-col gap-5 max-h-[820px] overflow-y-auto">
+        <!-- Header -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-2xl shadow-sm">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold text-slate-900">Λειτουργία Εκπαιδευτή</h1>
+                    <p class="text-xs sm:text-sm text-slate-500">Διαδραστικοί οδηγοί βήμα-προς-βήμα για μαθητές</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="toggleHighlightHelp()" id="highlight-toggle-btn" class="px-3.5 py-2 rounded-xl bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold text-xs flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Υπόδειξη: ΕΝΕΡΓΗ</span>
+                </button>
+                <button onclick="resetSimulator()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition" title="Επαναφορά Συσκευής">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Επαναφορά</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Lesson Selector Pills -->
+        <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">1. Επίλεξε Δραστηριότητα / Μάθημα:</p>
+            <div id="lesson-selector-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </div>
+
+        <!-- Active Lesson Step-by-Step Guide Card -->
+        <div id="active-lesson-card" class="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5 space-y-4">
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <span id="lesson-badge" class="inline-block px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold mb-1.5">Μάθημα 1</span>
+                    <h2 id="lesson-title" class="text-lg font-extrabold text-slate-900">Ξεκλείδωμα & Αρχική Οθόνη</h2>
+                </div>
+                <span id="lesson-progress-text" class="text-xs font-extrabold px-3 py-1 rounded-full bg-white text-blue-700 border border-blue-200">
+                    Βήμα 1 / 2
+                </span>
+            </div>
+
+            <!-- Current Step Instruction Box -->
+            <div class="bg-white rounded-2xl p-4 border border-blue-100 shadow-sm">
+                <p class="text-xs font-bold text-amber-600 uppercase mb-1"><i class="fa-solid fa-hand-pointer mr-1"></i> Οδηγία για τον μαθητή:</p>
+                <p id="lesson-step-instruction" class="text-base font-bold text-slate-800 leading-relaxed">
+                    Πάτησε το λευκό κουμπί «Ξεκλείδωμα Οθόνης» στο κάτω μέρος του κινητού.
+                </p>
+            </div>
+
+            <!-- Steps Checklist -->
+            <div id="lesson-steps-list" class="space-y-2">
+                <!-- Steps rendered here -->
+            </div>
+
+            <!-- Lesson Navigation Controls -->
+            <div class="flex items-center justify-between pt-2">
+                <button onclick="prevLessonStep()" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 transition">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Προηγούμενο Βήμα
+                </button>
+                <button onclick="nextLessonStep()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition">
+                    Επόμενο Βήμα <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Classroom Quick Tips Footer -->
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
+            <i class="fa-solid fa-lightbulb text-amber-500 text-lg mt-0.5"></i>
+            <div>
+                <p class="font-bold text-slate-800 mb-0.5">Συμβουλή για την τάξη & τον διαδραστικό πίνακα:</p>
+                <p>Το πορτοκαλί πλαίσιο που αναβοσβήνει πάνω στο κινητό δείχνει αυτόματα στον μαθητή ποιο κουμπί πρέπει να πατήσει σε κάθε βήμα. Μπορείτε να το απενεργοποιήσετε για αξιολόγηση γνώσεων.</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // ==================== STATE MANAGEMENT ====================
+        const state = {
+            locked: true,
+            pinEnabled: false,
+            pinCode: '1234',
+            wifiOn: false,
+            wifiConnectedTo: null,
+            pendingWifiNet: null,
+            btOn: false,
+            btConnectedTo: null,
+            airplaneOn: false,
+            flashlightOn: false,
+            batterySaver: false,
+            brightness: 100,
+            volume: 70,
+            soundMode: 'sound', // 'sound' | 'vibrate' | 'mute'
+            ringtone: 'Κλασικό',
+            touchSounds: true,
+            darkMode: false,
+            boldText: false,
+            accentTheme: 'blue',
+            fontSize: 'normal',
+            screenTimeout: '30 δευτ.',
+            homeWallpaperId: 'wp-default',
+            lockWallpaperId: 'wp-default',
+            selectedSettingsWpId: 'wp-mountain',
+            currentView: 'home',
+            recentApps: ['phone', 'messages', 'gallery', 'settings'],
+            dialNumber: '',
+            callInterval: null,
+            callSeconds: 0,
+            contacts: [
+                { id: 1, name: 'Μαμά', phone: '697 123 4567' },
+                { id: 2, name: 'Μπαμπάς', phone: '694 987 6543' },
+                { id: 3, name: 'Σχολείο (Γραμματεία)', phone: '210 555 1234' },
+                { id: 4, name: 'Έκτακτη Ανάγκη (Ευρωπαϊκό)', phone: '112' }
+            ],
+            recentCalls: [
+                { name: 'Μαμά', phone: '697 123 4567', type: 'Εισερχόμενη', time: '08:45' },
+                { name: 'Σχολείο (Γραμματεία)', phone: '210 555 1234', type: 'Εξερχόμενη', time: 'Χθες' }
+            ],
+            conversations: [
+                {
+                    id: 1,
+                    name: 'Μαμά',
+                    phone: '697 123 4567',
+                    unread: true,
+                    messages: [
+                        { sender: 'them', text: 'Καλημέρα αγάπη μου! Να έχεις μια όμορφη μέρα στο σχολείο!', time: '08:15' }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: 'Δάσκαλος Πληροφορικής',
+                    phone: '698 111 2233',
+                    unread: false,
+                    messages: [
+                        { sender: 'them', text: 'Σήμερα θα μάθουμε πώς να στέλνουμε γραπτά μηνύματα SMS.', time: 'Χθες' }
+                    ]
+                }
+            ],
+            activeChatId: null,
+            galleryTab: 'all',
+            viewerPhotoId: null,
+            photos: [
+                { id: 'wp-mountain', title: 'Βουνό & Λίμνη', source: 'preset', favorite: true, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#bae6fd"/></linearGradient></defs><rect width="300" height="220" fill="url(#g1)"/><circle cx="240" cy="48" r="24" fill="#fde047"/><polygon points="20,165 110,60 200,165" fill="#475569"/><polygon points="110,60 85,90 105,95 115,85 132,92" fill="#f8fafc"/><polygon points="120,165 210,75 295,165" fill="#334155"/><rect y="160" width="300" height="60" fill="#0284c7"/><path d="M20 180 Q90 175 160 180 T290 180" stroke="#7dd3fc" stroke-width="3" fill="none"/></svg>` },
+                { id: 'wp-beach', title: 'Παραλία & Ηλιοβασίλεμα', source: 'preset', favorite: false, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f97316"/><stop offset="60%" stop-color="#facc15"/><stop offset="100%" stop-color="#fef08a"/></linearGradient></defs><rect width="300" height="145" fill="url(#g2)"/><circle cx="150" cy="125" r="36" fill="#fffbeb"/><rect y="135" width="300" height="45" fill="#0ea5e9"/><path d="M0 180 Q150 165 300 180 L300 220 L0 220 Z" fill="#fde047"/></svg>` },
+                { id: 'wp-space', title: 'Διάστημα & Αστέρια', source: 'preset', favorite: true, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><rect width="300" height="220" fill="#0f172a"/><circle cx="45" cy="35" r="2" fill="#fff"/><circle cx="95" cy="70" r="2.5" fill="#fde047"/><circle cx="240" cy="40" r="2" fill="#fff"/><circle cx="265" cy="110" r="3" fill="#bae6fd"/><circle cx="60" cy="175" r="2" fill="#fff"/><circle cx="155" cy="110" r="38" fill="#6366f1"/><ellipse cx="155" cy="110" rx="68" ry="14" fill="none" stroke="#c4b5fd" stroke-width="5" transform="rotate(-18 155 110)"/></svg>` },
+                { id: 'wp-meadow', title: 'Λουλούδια στον Κήπο', source: 'preset', favorite: false, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><rect width="300" height="140" fill="#7dd3fc"/><path d="M0 135 Q150 110 300 135 L300 220 L0 220 Z" fill="#22c55e"/><circle cx="75" cy="155" r="12" fill="#f43f5e"/><circle cx="75" cy="155" r="5" fill="#facc15"/><circle cx="155" cy="145" r="14" fill="#a855f7"/><circle cx="155" cy="145" r="6" fill="#fde047"/><circle cx="230" cy="162" r="12" fill="#f97316"/><circle cx="230" cy="162" r="5" fill="#fff"/></svg>` },
+                { id: 'wp-kitten', title: 'Χαριτωμένο Γατάκι', source: 'preset', favorite: true, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><rect width="300" height="220" fill="#fce7f3"/><polygon points="95,85 115,35 140,75" fill="#fb923c"/><polygon points="205,85 185,35 160,75" fill="#fb923c"/><circle cx="150" cy="115" r="52" fill="#fdba74"/><circle cx="132" cy="105" r="6" fill="#1e293b"/><circle cx="168" cy="105" r="6" fill="#1e293b"/><polygon points="144,120 156,120 150,127" fill="#f43f5e"/><path d="M138 134 Q150 144 162 134" stroke="#1e293b" stroke-width="3" fill="none"/></svg>` },
+                { id: 'wp-trip', title: 'Σχολική Εκδρομή', source: 'preset', favorite: false, date: 'Προεγκατεστημένη', svg: `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><rect width="300" height="150" fill="#bae6fd"/><rect y="150" width="300" height="70" fill="#86efac"/><rect x="65" y="85" width="170" height="65" rx="14" fill="#facc15"/><rect x="80" y="98" width="32" height="24" rx="4" fill="#e0f2fe"/><rect x="120" y="98" width="32" height="24" rx="4" fill="#e0f2fe"/><rect x="160" y="98" width="32" height="24" rx="4" fill="#e0f2fe"/><circle cx="105" cy="152" r="15" fill="#1e293b"/><circle cx="195" cy="152" r="15" fill="#1e293b"/></svg>` }
+            ],
+            cameraSceneIndex: 0,
+            calcExpr: '',
+            teacherHighlightEnabled: true,
+            activeLessonIndex: 0,
+            activeStepIndex: 0
+        };
+
+        // ==================== GUIDED TEACHER LESSONS (IN GREEK) ====================
+        const lessons = [
+            {
+                id: 'unlock',
+                title: '1. Ξεκλείδωμα & Πλοήγηση',
+                icon: 'fa-lock-open',
+                steps: [
+                    {
+                        text: 'Πάτησε το κουμπί «Ξεκλείδωμα Οθόνης» για να μπεις στο κινητό.',
+                        target: 'unlock-btn',
+                        check: () => !state.locked
+                    },
+                    {
+                        text: 'Άνοιξε το μενού γρήγορων ρυθμίσεων πατώντας τη μπάρα ώρας/μπαταρίας στην κορυφή.',
+                        target: 'status-bar',
+                        check: () => !document.getElementById('quick-settings-shade').classList.contains('-translate-y-full')
+                    }
+                ]
+            },
+            {
+                id: 'wifi',
+                title: '2. Σύνδεση στο Wi-Fi',
+                icon: 'fa-wifi',
+                steps: [
+                    {
+                        text: 'Από την Αρχική Οθόνη, πάτησε το εικονίδιο «Ρυθμίσεις».',
+                        target: 'app-settings',
+                        check: () => state.currentView === 'settings'
+                    },
+                    {
+                        text: 'Πάτησε την επιλογή «Wi-Fi» στη λίστα ρυθμίσεων.',
+                        target: 'set-wifi-item',
+                        check: () => !document.getElementById('settings-sub-wifi').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Ενεργοποίησε τον διακόπτη «Χρήση Wi-Fi».',
+                        target: 'set-wifi-switch',
+                        check: () => state.wifiOn
+                    },
+                    {
+                        text: 'Πάτησε πάνω στο δίκτυο «Σχολικό_Δίκτυο_WiFi» για να συνδεθείς.',
+                        target: 'wifi-net-school',
+                        check: () => state.wifiConnectedTo === 'Σχολικό_Δίκτυο_WiFi'
+                    }
+                ]
+            },
+            {
+                id: 'call',
+                title: '3. Πραγματοποίηση Κλήσης',
+                icon: 'fa-phone',
+                steps: [
+                    {
+                        text: 'Πάτησε το μεσαίο κουμπί «Αρχική» στο κάτω μέρος και άνοιξε το «Τηλέφωνο».',
+                        target: 'app-phone',
+                        check: () => state.currentView === 'phone'
+                    },
+                    {
+                        text: 'Πληκτρολόγησε έναν αριθμό (π.χ. 112 ή 2105551234) στο πληκτρολόγιο.',
+                        target: 'phone-keypad',
+                        check: () => state.dialNumber.length >= 3
+                    },
+                    {
+                        text: 'Πάτησε το πράσινο κουμπί «Κλήση» για να ξεκινήσει το τηλεφώνημα.',
+                        target: 'call-start-btn',
+                        check: () => !document.getElementById('active-call-screen').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Πάτησε το κόκκινο κουμπί για να τερματίσεις την κλήση.',
+                        target: 'end-call-btn',
+                        check: () => document.getElementById('active-call-screen').classList.contains('hidden') && state.dialNumber === ''
+                    }
+                ]
+            },
+            {
+                id: 'sms',
+                title: '4. Αποστολή Μηνύματος (SMS)',
+                icon: 'fa-comment-dots',
+                steps: [
+                    {
+                        text: 'Πάτησε το μπλε εικονίδιο «Μηνύματα» στην Αρχική Οθόνη.',
+                        target: 'app-messages',
+                        check: () => state.currentView === 'messages'
+                    },
+                    {
+                        text: 'Πάτησε πάνω στη συνομιλία με τη «Μαμά» ή το κουμπί «Νέο SMS».',
+                        target: 'new-msg-btn',
+                        check: () => !document.getElementById('msg-chat-view').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Γράψε ένα μήνυμα (ή διάλεξε μια έτοιμη απάντηση) και πάτησε Αποστολή.',
+                        target: 'chat-send-btn',
+                        check: () => {
+                            const c = state.conversations.find(x => x.id === state.activeChatId);
+                            return c && c.messages.some(m => m.sender === 'me');
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'display',
+                title: '5. Φωτεινότητα & Γραμματοσειρά',
+                icon: 'fa-sun',
+                steps: [
+                    {
+                        text: 'Άνοιξε τις «Ρυθμίσεις» από την Αρχική Οθόνη.',
+                        target: 'app-settings',
+                        check: () => state.currentView === 'settings'
+                    },
+                    {
+                        text: 'Επίλεξε «Οθόνη & Προσβασιμότητα».',
+                        target: 'set-display-item',
+                        check: () => !document.getElementById('settings-sub-display').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Δοκίμασε να αλλάξεις το «Μέγεθος Γραμματοσειράς» σε Μεγάλο ή Πολύ Μεγάλο.',
+                        target: 'set-font-box',
+                        check: () => state.fontSize !== 'normal'
+                    }
+                ]
+            },
+            {
+                id: 'contact',
+                title: '6. Προσθήκη Νέας Επαφής',
+                icon: 'fa-user-plus',
+                steps: [
+                    {
+                        text: 'Άνοιξε την εφαρμογή «Επαφές» από την Αρχική Οθόνη.',
+                        target: 'app-contacts',
+                        check: () => state.currentView === 'contacts'
+                    },
+                    {
+                        text: 'Πάτησε το πορτοκαλί κουμπί «Νέα Επαφή» πάνω δεξιά.',
+                        target: 'add-contact-btn',
+                        check: () => !document.getElementById('add-contact-form').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Συμπλήρωσε Όνομα και Τηλέφωνο και πάτησε «Αποθήκευση».',
+                        target: 'save-contact-btn',
+                        check: () => state.contacts.length > 4
+                    }
+                ]
+            },
+            {
+                id: 'themes',
+                title: '7. Θέματα & Ταπετσαρία',
+                icon: 'fa-palette',
+                steps: [
+                    {
+                        text: 'Άνοιξε τις «Ρυθμίσεις» από την Αρχική Οθόνη.',
+                        target: 'app-settings',
+                        check: () => state.currentView === 'settings'
+                    },
+                    {
+                        text: 'Πάτησε την πρώτη επιλογή «Θέματα & Ταπετσαρία».',
+                        target: 'set-themes-item',
+                        check: () => !document.getElementById('settings-sub-themes').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Διάλεξε ένα νέο «Χρώμα Θέματος» (π.χ. Πράσινο ή Μωβ).',
+                        target: 'theme-color-picker',
+                        check: () => state.accentTheme !== 'blue'
+                    },
+                    {
+                        text: 'Διάλεξε μια εικόνα από την «Επιλογή Ταπετσαρίας» και πάτησε Αρχική ή Και στα δύο.',
+                        target: 'theme-wallpaper-picker',
+                        check: () => state.homeWallpaperId !== 'wp-default'
+                    }
+                ]
+            },
+            {
+                id: 'gallery_wp',
+                title: '8. Συλλογή & Ταπετσαρία Φωτό',
+                icon: 'fa-images',
+                steps: [
+                    {
+                        text: 'Πάτησε το ροζ εικονίδιο «Συλλογή» στην Αρχική Οθόνη.',
+                        target: 'app-gallery',
+                        check: () => state.currentView === 'gallery'
+                    },
+                    {
+                        text: 'Πάτησε πάνω σε οποιαδήποτε φωτογραφία της συλλογής για να την ανοίξεις.',
+                        target: 'gallery-grid',
+                        check: () => !document.getElementById('photo-viewer-modal').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Πάτησε το κουμπί «Ορισμός ως Ταπετσαρία» στο κάτω μέρος.',
+                        target: 'viewer-set-wp-btn',
+                        check: () => !document.getElementById('wallpaper-target-box').classList.contains('hidden')
+                    },
+                    {
+                        text: 'Επίλεξε «Αρχική Οθόνη» για να ολοκληρώσεις την αλλαγή!',
+                        target: 'wp-apply-home',
+                        check: () => document.getElementById('wallpaper-target-box').classList.contains('hidden') && state.homeWallpaperId !== 'wp-default'
+                    }
+                ]
+            }
+        ];
+
+        // ==================== AUDIO FEEDBACK (TONE.JS) ====================
+        let synth = null;
+        function playUiClick(freq = 520, duration = '32n', isTouch = true) {
+            try {
+                if (state.soundMode !== 'sound' || state.volume <= 0) return;
+                if (isTouch && !state.touchSounds) return;
+                if (!synth) {
+                    synth = new Tone.Synth({
+                        oscillator: { type: 'sine' },
+                        envelope: { attack: 0.005, decay: 0.08, sustain: 0, release: 0.05 }
+                    }).toDestination();
+                }
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                synth.volume.value = -25 + (state.volume / 100) * 20;
+                synth.triggerAttackRelease(freq, duration);
+            } catch (e) {
+                // Ignore audio restriction if user hasn't interacted yet
+            }
+        }
+
+        function playRingtonePreview() {
+            if (state.soundMode === 'mute') {
+                showToast('Το κινητό είναι στο Αθόρυβο');
+                return;
+            }
+            if (state.soundMode === 'vibrate') {
+                showToast('Δόνηση: Βζζζ - Βζζζ!');
+                return;
+            }
+            const notes = state.ringtone === 'Χαρούμενο' ? [523, 659, 784, 1046] :
+                          state.ringtone === 'Απαλό' ? [440, 493, 523] : [587, 659, 587, 784];
+            notes.forEach((n, i) => {
+                setTimeout(() => playUiClick(n, '16n', false), i * 180);
+            });
+            showToast(`Αναπαραγωγή μελωδίας: ${state.ringtone}`);
+        }
+
+        // ==================== CLOCK & INITIALIZATION ====================
+        function updateClock() {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const timeStr = `${hh}:${mm}`;
+            document.getElementById('status-time').textContent = timeStr;
+            document.getElementById('lock-time').textContent = timeStr;
+            document.getElementById('shade-time').textContent = timeStr;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('phone-toast');
+            toast.textContent = msg;
+            toast.classList.remove('hidden');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2400);
+        }
+
+        // ==================== LOCK SCREEN LOGIC ====================
+        function handleUnlock() {
+            playUiClick(600);
+            if (state.pinEnabled) {
+                document.getElementById('lock-pin-box').classList.remove('hidden');
+                document.getElementById('lock-pin-input').focus();
+                return;
+            }
+            unlockDevice();
+        }
+
+        function verifyPinAndUnlock() {
+            const val = document.getElementById('lock-pin-input').value;
+            if (val === state.pinCode) {
+                document.getElementById('lock-pin-error').classList.add('hidden');
+                document.getElementById('lock-pin-input').value = '';
+                document.getElementById('lock-pin-box').classList.add('hidden');
+                unlockDevice();
+            } else {
+                document.getElementById('lock-pin-error').classList.remove('hidden');
+                playUiClick(220, '8n');
+            }
+        }
+
+        function unlockDevice() {
+            state.locked = false;
+            document.getElementById('lock-screen').classList.add('hidden');
+            showToast('Η οθόνη ξεκλειδώθηκε');
+            evaluateTeacherProgress();
+        }
+
+        function togglePowerLock() {
+            playUiClick(400);
+            state.locked = !state.locked;
+            const lockEl = document.getElementById('lock-screen');
+            if (state.locked) {
+                toggleQuickSettings(false);
+                lockEl.classList.remove('hidden');
+                showToast('Η οθόνη κλειδώθηκε');
+            } else {
+                handleUnlock();
+            }
+        }
+
+        // ==================== QUICK SETTINGS SHADE ====================
+        function toggleQuickSettings(open) {
+            playUiClick(480);
+            const shade = document.getElementById('quick-settings-shade');
+            if (open) {
+                shade.classList.remove('-translate-y-full');
+            } else {
+                shade.classList.add('-translate-y-full');
+            }
+            evaluateTeacherProgress();
+        }
+
+        function toggleWifi() {
+            playUiClick(560);
+            if (state.airplaneOn && !state.wifiOn) {
+                showToast('Απενεργοποιήστε πρώτα τη Λειτουργία Πτήσης');
+                return;
+            }
+            state.wifiOn = !state.wifiOn;
+            if (!state.wifiOn) {
+                state.wifiConnectedTo = null;
+            } else if (!state.wifiConnectedTo) {
+                state.wifiConnectedTo = 'Σχολικό_Δίκτυο_WiFi';
+            }
+            syncSystemControlsUI();
+            evaluateTeacherProgress();
+        }
+
+        function connectWifiNetwork(netName) {
+            playUiClick(680);
+            state.wifiOn = true;
+            state.wifiConnectedTo = netName;
+            syncSystemControlsUI();
+            showToast(`Συνδέθηκε στο ${netName}`);
+            evaluateTeacherProgress();
+        }
+
+        function promptWifiConnect(netName, needsPassword) {
+            playUiClick(540);
+            if (!needsPassword) {
+                document.getElementById('wifi-password-modal').classList.add('hidden');
+                connectWifiNetwork(netName);
+                return;
+            }
+            state.pendingWifiNet = netName;
+            document.getElementById('wifi-pass-netname').textContent = netName;
+            document.getElementById('wifi-password-modal').classList.remove('hidden');
+        }
+
+        function submitWifiPassword() {
+            const pass = document.getElementById('wifi-pass-input').value.trim();
+            if (pass.length < 4) {
+                showToast('Ο κωδικός πρέπει να έχει τουλάχιστον 4 χαρακτήρες');
+                return;
+            }
+            document.getElementById('wifi-password-modal').classList.add('hidden');
+            connectWifiNetwork(state.pendingWifiNet || 'Σπίτι_5G');
+        }
+
+        function toggleBluetooth() {
+            playUiClick(560);
+            state.btOn = !state.btOn;
+            if (!state.btOn) state.btConnectedTo = null;
+            syncSystemControlsUI();
+            evaluateTeacherProgress();
+        }
+
+        function connectBtDevice(devName) {
+            playUiClick(660);
+            state.btConnectedTo = devName;
+            syncSystemControlsUI();
+            showToast(`Συνδέθηκε: ${devName}`);
+        }
+
+        function toggleFlashlight() {
+            playUiClick(620);
+            state.flashlightOn = !state.flashlightOn;
+            syncSystemControlsUI();
+            showToast(state.flashlightOn ? 'Ο φακός άναψε' : 'Ο φακός έσβησε');
+        }
+
+        function toggleAirplane() {
+            playUiClick(500);
+            state.airplaneOn = !state.airplaneOn;
+            if (state.airplaneOn) {
+                state.wifiOn = false;
+                state.wifiConnectedTo = null;
+                state.btOn = false;
+            }
+            syncSystemControlsUI();
+            showToast(state.airplaneOn ? 'Λειτουργία πτήσης ενεργή' : 'Λειτουργία πτήσης ανενεργή');
+        }
+
+        function setBrightness(val) {
+            state.brightness = Number(val);
+            document.getElementById('qs-brightness-slider').value = val;
+            document.getElementById('set-brightness-slider').value = val;
+            document.getElementById('qs-brightness-val').textContent = val + '%';
+            document.getElementById('set-brightness-val').textContent = val + '%';
+            // Map 25..100% brightness to 0.55..0 dark overlay opacity
+            const darkness = ((100 - state.brightness) / 100) * 0.72;
+            document.getElementById('brightness-overlay').style.opacity = darkness.toFixed(2);
+            evaluateTeacherProgress();
+        }
+
+        function setVolume(val) {
+            state.volume = Number(val);
+            document.getElementById('qs-volume-slider').value = val;
+            document.getElementById('set-volume-slider').value = val;
+            document.getElementById('qs-volume-val').textContent = val + '%';
+            document.getElementById('set-volume-val').textContent = val + '%';
+        }
+
+        function adjustVolumeFromHardware(delta) {
+            const next = Math.max(0, Math.min(100, state.volume + delta));
+            setVolume(next);
+            playUiClick(520);
+            showToast(`Ένταση ήχου: ${next}%`);
+        }
+
+        function syncSystemControlsUI() {
+            // Wi-Fi UI
+            const wifiBtn = document.getElementById('qs-wifi-btn');
+            const wifiIcon = document.getElementById('qs-wifi-icon');
+            const wifiLabel = document.getElementById('qs-wifi-label');
+            const statusWifi = document.getElementById('status-wifi');
+            const setWifiSwitch = document.getElementById('set-wifi-switch');
+            const wifiNetBox = document.getElementById('wifi-networks-box');
+
+            if (state.wifiOn) {
+                wifiBtn.classList.replace('bg-slate-800', 'bg-blue-600');
+                wifiIcon.classList.replace('bg-slate-700', 'bg-blue-500');
+                wifiLabel.textContent = state.wifiConnectedTo || 'Ενεργό';
+                wifiLabel.classList.replace('text-slate-400', 'text-blue-100');
+                statusWifi.classList.replace('text-slate-400', 'text-blue-500');
+                setWifiSwitch.classList.replace('bg-slate-300', 'bg-blue-600');
+                setWifiSwitch.firstElementChild.classList.add('translate-x-6');
+                wifiNetBox.classList.remove('hidden');
+                document.getElementById('set-wifi-subtext').textContent = state.wifiConnectedTo || 'Ενεργό';
+                document.getElementById('wifi-status-school').textContent = state.wifiConnectedTo === 'Σχολικό_Δίκτυο_WiFi' ? 'Συνδεδεμένο ✓' : 'Πάτησε για σύνδεση';
+                document.getElementById('wifi-status-home').textContent = state.wifiConnectedTo === 'Σπίτι_5G' ? 'Συνδεδεμένο ✓' : 'Προστατευμένο με κωδικό';
+                document.getElementById('wifi-status-lib').textContent = state.wifiConnectedTo === 'Βιβλιοθήκη_Free' ? 'Συνδεδεμένο ✓' : 'Ανοιχτό δίκτυο';
+            } else {
+                wifiBtn.classList.replace('bg-blue-600', 'bg-slate-800');
+                wifiIcon.classList.replace('bg-blue-500', 'bg-slate-700');
+                wifiLabel.textContent = 'Ανενεργό';
+                wifiLabel.classList.replace('text-blue-100', 'text-slate-400');
+                statusWifi.classList.replace('text-blue-500', 'text-slate-400');
+                setWifiSwitch.classList.replace('bg-blue-600', 'bg-slate-300');
+                setWifiSwitch.firstElementChild.classList.remove('translate-x-6');
+                wifiNetBox.classList.add('hidden');
+                document.getElementById('set-wifi-subtext').textContent = 'Ανενεργό';
+            }
+
+            // Bluetooth UI
+            const btBtn = document.getElementById('qs-bt-btn');
+            const btIcon = document.getElementById('qs-bt-icon');
+            const btLabel = document.getElementById('qs-bt-label');
+            const statusBt = document.getElementById('status-bt');
+            const setBtSwitch = document.getElementById('set-bt-switch');
+            const btBox = document.getElementById('bt-devices-box');
+
+            if (state.btOn) {
+                btBtn.classList.replace('bg-slate-800', 'bg-indigo-600');
+                btIcon.classList.replace('bg-slate-700', 'bg-indigo-500');
+                btLabel.textContent = state.btConnectedTo || 'Ενεργό';
+                statusBt.classList.remove('hidden');
+                setBtSwitch.classList.replace('bg-slate-300', 'bg-indigo-600');
+                setBtSwitch.firstElementChild.classList.add('translate-x-6');
+                btBox.classList.remove('hidden');
+                document.getElementById('set-bt-subtext').textContent = state.btConnectedTo || 'Ενεργό';
+                document.getElementById('bt-dev-1').textContent = state.btConnectedTo === 'Ακουστικά Bluetooth' ? 'Συνδεδεμένο ✓' : 'Σύνδεση';
+                document.getElementById('bt-dev-2').textContent = state.btConnectedTo === 'Ηχείο Τάξης' ? 'Συνδεδεμένο ✓' : 'Σύνδεση';
+                document.getElementById('bt-dev-3').textContent = state.btConnectedTo === 'SmartWatch' ? 'Συνδεδεμένο ✓' : 'Σύνδεση';
+            } else {
+                btBtn.classList.replace('bg-indigo-600', 'bg-slate-800');
+                btIcon.classList.replace('bg-indigo-500', 'bg-slate-700');
+                btLabel.textContent = 'Ανενεργό';
+                statusBt.classList.add('hidden');
+                setBtSwitch.classList.replace('bg-indigo-600', 'bg-slate-300');
+                setBtSwitch.firstElementChild.classList.remove('translate-x-6');
+                btBox.classList.add('hidden');
+                document.getElementById('set-bt-subtext').textContent = 'Ανενεργό';
+            }
+
+            // Flashlight UI
+            const flashBtn = document.getElementById('qs-flash-btn');
+            const flashIcon = document.getElementById('qs-flash-icon');
+            const flashLabel = document.getElementById('qs-flash-label');
+            const flashBanner = document.getElementById('flashlight-banner');
+            if (state.flashlightOn) {
+                flashBtn.classList.replace('bg-slate-800', 'bg-amber-500');
+                flashIcon.classList.replace('bg-slate-700', 'bg-amber-400');
+                flashLabel.textContent = 'Ανοιχτός';
+                flashBanner.classList.remove('hidden');
+            } else {
+                flashBtn.classList.replace('bg-amber-500', 'bg-slate-800');
+                flashIcon.classList.replace('bg-amber-400', 'bg-slate-700');
+                flashLabel.textContent = 'Κλειστός';
+                flashBanner.classList.add('hidden');
+            }
+
+            // Airplane UI
+            const airBtn = document.getElementById('qs-air-btn');
+            const airLabel = document.getElementById('qs-air-label');
+            const statusAir = document.getElementById('status-airplane');
+            const statusSig = document.getElementById('status-signal');
+            if (state.airplaneOn) {
+                airBtn.classList.replace('bg-slate-800', 'bg-amber-600');
+                airLabel.textContent = 'Ενεργή';
+                statusAir.classList.remove('hidden');
+                statusSig.classList.add('hidden');
+            } else {
+                airBtn.classList.replace('bg-amber-600', 'bg-slate-800');
+                airLabel.textContent = 'Ανενεργή';
+                statusAir.classList.add('hidden');
+                statusSig.classList.remove('hidden');
+            }
+        }
+
+        // ==================== NAVIGATION & APPS ====================
+        const allViews = ['home', 'phone', 'messages', 'contacts', 'camera', 'gallery', 'maps', 'calculator', 'settings', 'recents'];
+
+        function openApp(appName) {
+            playUiClick(540);
+            allViews.forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+            });
+            document.getElementById('view-' + appName).classList.remove('hidden');
+            state.currentView = appName;
+
+            if (appName !== 'home' && appName !== 'recents') {
+                state.recentApps = [appName, ...state.recentApps.filter(a => a !== appName)];
+            }
+
+            // App-specific entry refreshes
+            if (appName === 'phone') renderRecentCalls();
+            if (appName === 'messages') renderConversations();
+            if (appName === 'contacts') renderContacts();
+            if (appName === 'gallery') renderGalleryApp();
+            if (appName === 'settings') showSettingsMenu();
+            if (appName === 'recents') renderRecentsOverview();
+
+            evaluateTeacherProgress();
+        }
+
+        function navHome() {
+            toggleQuickSettings(false);
+            openApp('home');
+        }
+
+        function navBack() {
+            playUiClick(440);
+            if (!document.getElementById('quick-settings-shade').classList.contains('-translate-y-full')) {
+                toggleQuickSettings(false);
+                return;
+            }
+            if (state.currentView === 'gallery' && !document.getElementById('photo-viewer-modal').classList.contains('hidden')) {
+                closePhotoViewer();
+                return;
+            }
+            if (state.currentView === 'messages' && !document.getElementById('msg-chat-view').classList.contains('hidden')) {
+                closeChatThread();
+                return;
+            }
+            if (state.currentView === 'settings' && document.getElementById('settings-main-menu').classList.contains('hidden')) {
+                showSettingsMenu();
+                return;
+            }
+            if (state.currentView !== 'home') {
+                openApp('home');
+            }
+        }
+
+        function navRecents() {
+            toggleQuickSettings(false);
+            openApp('recents');
+        }
+
+        function renderRecentsOverview() {
+            const container = document.getElementById('recents-list');
+            const appNamesEl = {
+                phone: { label: 'Τηλέφωνο', icon: 'fa-phone', color: 'bg-emerald-500' },
+                messages: { label: 'Μηνύματα', icon: 'fa-comment-dots', color: 'bg-blue-500' },
+                contacts: { label: 'Επαφές', icon: 'fa-address-book', color: 'bg-orange-500' },
+                camera: { label: 'Κάμερα', icon: 'fa-camera', color: 'bg-slate-700' },
+                gallery: { label: 'Συλλογή', icon: 'fa-images', color: 'bg-pink-500' },
+                maps: { label: 'Χάρτες', icon: 'fa-map-location-dot', color: 'bg-teal-500' },
+                calculator: { label: 'Αριθμομηχανή', icon: 'fa-calculator', color: 'bg-amber-500' },
+                settings: { label: 'Ρυθμίσεις', icon: 'fa-gear', color: 'bg-indigo-600' }
+            };
+
+            if (state.recentApps.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-12 text-sm">Δεν υπάρχουν πρόσφατες εφαρμογές</div>`;
+                return;
+            }
+
+            container.innerHTML = state.recentApps.map(appKey => {
+                const info = appNamesEl[appKey];
+                return `
+                    <div onclick="openApp('${appKey}')" class="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-slate-700 transition">
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 h-10 rounded-xl ${info.color} flex items-center justify-center text-white text-lg">
+                                <i class="fa-solid ${info.icon}"></i>
+                            </span>
+                            <span class="font-bold text-base">${info.label}</span>
+                        </div>
+                        <span class="text-xs text-blue-400 font-semibold">Άνοιγμα</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearRecents() {
+            playUiClick(400);
+            state.recentApps = [];
+            renderRecentsOverview();
+            showToast('Όλες οι πρόσφατες εφαρμογές έκλεισαν');
+        }
+
+        // ==================== PHONE APP LOGIC ====================
+        function switchPhoneTab(tab) {
+            playUiClick(500);
+            const keypadPanel = document.getElementById('phone-keypad-panel');
+            const recentsPanel = document.getElementById('phone-recents-panel');
+            const btnK = document.getElementById('phone-tab-keypad');
+            const btnR = document.getElementById('phone-tab-recents');
+
+            if (tab === 'keypad') {
+                keypadPanel.classList.remove('hidden');
+                recentsPanel.classList.add('hidden');
+                btnK.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+                btnR.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+            } else {
+                keypadPanel.classList.add('hidden');
+                recentsPanel.classList.remove('hidden');
+                btnR.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+                btnK.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+                renderRecentCalls();
+            }
+        }
+
+        function pressDial(digit) {
+            const freqs = { '1': 697, '2': 720, '3': 750, '4': 770, '5': 800, '6': 830, '7': 852, '8': 880, '9': 910, '*': 941, '0': 960, '#': 990 };
+            playUiClick(freqs[digit] || 700, '16n');
+            if (state.dialNumber.length < 15) {
+                state.dialNumber += digit;
+                document.getElementById('dial-display').textContent = state.dialNumber;
+            }
+            evaluateTeacherProgress();
+        }
+
+        function backspaceDial() {
+            playUiClick(420);
+            state.dialNumber = state.dialNumber.slice(0, -1);
+            document.getElementById('dial-display').textContent = state.dialNumber;
+        }
+
+        function startCall(prefillNumber = null, prefillName = null) {
+            if (state.airplaneOn) {
+                showToast('Δεν είναι δυνατή η κλήση σε Λειτουργία Πτήσης');
+                return;
+            }
+            const num = prefillNumber || state.dialNumber;
+            if (!num) {
+                showToast('Πληκτρολογήστε πρώτα έναν αριθμό');
+                return;
+            }
+
+            playUiClick(650, '8n');
+            const matchedContact = state.contacts.find(c => c.phone.replace(/\s+/g, '') === num.replace(/\s+/g, ''));
+            const displayName = prefillName || (matchedContact ? matchedContact.name : 'Άγνωστος Αριθμός');
+
+            document.getElementById('call-contact-name').textContent = displayName;
+            document.getElementById('call-contact-number').textContent = num;
+            document.getElementById('call-timer').textContent = 'Γίνεται κλήση...';
+            document.getElementById('active-call-screen').classList.remove('hidden');
+
+            // Log recent call
+            state.recentCalls.unshift({
+                name: displayName,
+                phone: num,
+                type: 'Εξερχόμενη',
+                time: 'Τώρα'
+            });
+
+            state.callSeconds = 0;
+            clearInterval(state.callInterval);
+            state.callInterval = setInterval(() => {
+                state.callSeconds++;
+                const mins = String(Math.floor(state.callSeconds / 60)).padStart(2, '0');
+                const secs = String(state.callSeconds % 60).padStart(2, '0');
+                document.getElementById('call-timer').textContent = `Σε κλήση • ${mins}:${secs}`;
+            }, 1000);
+
+            evaluateTeacherProgress();
+        }
+
+        function toggleCallOption(btn) {
+            playUiClick(500);
+            btn.classList.toggle('bg-emerald-500');
+            btn.classList.toggle('bg-white/10');
+        }
+
+        function endCall() {
+            playUiClick(340, '8n');
+            clearInterval(state.callInterval);
+            document.getElementById('active-call-screen').classList.add('hidden');
+            state.dialNumber = '';
+            document.getElementById('dial-display').textContent = '';
+            showToast('Η κλήση τερματίστηκε');
+            evaluateTeacherProgress();
+        }
+
+        function renderRecentCalls() {
+            const container = document.getElementById('phone-recents-panel');
+            container.innerHTML = state.recentCalls.map(c => `
+                <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-sm text-slate-900">${c.name}</p>
+                        <p class="text-xs text-slate-500">${c.phone} • ${c.type} (${c.time})</p>
+                    </div>
+                    <button onclick="startCall('${c.phone}', '${c.name}')" class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex items-center justify-center">
+                        <i class="fa-solid fa-phone"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ==================== MESSAGES APP LOGIC ====================
+        function renderConversations() {
+            const container = document.getElementById('conversations-container');
+            const unreadCount = state.conversations.filter(c => c.unread).length;
+            const badge = document.getElementById('msg-badge');
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            container.innerHTML = state.conversations.map(conv => {
+                const lastMsg = conv.messages[conv.messages.length - 1];
+                return `
+                    <div onclick="openChatThread(${conv.id})" class="bg-white border ${conv.unread ? 'border-blue-400 bg-blue-50/40' : 'border-slate-200'} rounded-2xl p-3.5 cursor-pointer hover:bg-slate-50 transition flex items-center justify-between">
+                        <div class="overflow-hidden pr-2">
+                            <div class="flex items-center gap-2">
+                                <p class="font-bold text-sm text-slate-900">${conv.name}</p>
+                                ${conv.unread ? '<span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>' : ''}
+                            </div>
+                            <p class="text-xs text-slate-500 truncate mt-0.5">${lastMsg ? lastMsg.text : 'Νέα συνομιλία'}</p>
+                        </div>
+                        <span class="text-[11px] text-slate-400 shrink-0">${lastMsg ? lastMsg.time : ''}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openNewMessageComposer() {
+            openChatThread(1);
+        }
+
+        function openChatThread(convId) {
+            playUiClick(520);
+            state.activeChatId = convId;
+            const conv = state.conversations.find(c => c.id === convId);
+            if (!conv) return;
+            conv.unread = false;
+
+            document.getElementById('msg-list-view').classList.add('hidden');
+            document.getElementById('msg-chat-view').classList.remove('hidden');
+            document.getElementById('chat-recipient-name').textContent = conv.name;
+            document.getElementById('chat-recipient-phone').textContent = conv.phone;
+
+            renderChatBubbles();
+            renderConversations();
+            evaluateTeacherProgress();
+        }
+
+        function closeChatThread() {
+            playUiClick(440);
+            document.getElementById('msg-chat-view').classList.add('hidden');
+            document.getElementById('msg-list-view').classList.remove('hidden');
+            state.activeChatId = null;
+        }
+
+        function renderChatBubbles() {
+            const conv = state.conversations.find(c => c.id === state.activeChatId);
+            const box = document.getElementById('chat-bubbles');
+            if (!conv) return;
+            box.innerHTML = conv.messages.map(m => `
+                <div class="flex flex-col ${m.sender === 'me' ? 'items-end' : 'items-start'}">
+                    <div class="max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm ${m.sender === 'me' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-slate-200 text-slate-900 rounded-bl-sm'}">
+                        ${m.text}
+                    </div>
+                    <span class="text-[10px] text-slate-400 mt-0.5 px-1">${m.time}</span>
+                </div>
+            `).join('');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function fillQuickReply(text) {
+            playUiClick(580);
+            document.getElementById('chat-input').value = text;
+        }
+
+        function sendSmsMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            playUiClick(680);
+            const conv = state.conversations.find(c => c.id === state.activeChatId);
+            if (!conv) return;
+
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            conv.messages.push({ sender: 'me', text, time: timeStr });
+            input.value = '';
+            renderChatBubbles();
+            evaluateTeacherProgress();
+
+            // Simulated friendly auto-reply after 1.1s
+            setTimeout(() => {
+                conv.messages.push({
+                    sender: 'them',
+                    text: 'Το μήνυμά σου παραλήφθηκε! Πολύ καλή δουλειά! 👍',
+                    time: timeStr
+                });
+                if (state.activeChatId === conv.id) {
+                    renderChatBubbles();
+                }
+            }, 1100);
+        }
+
+        // ==================== CONTACTS APP LOGIC ====================
+        function renderContacts() {
+            const list = document.getElementById('contacts-list');
+            list.innerHTML = state.contacts.map(c => `
+                <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-extrabold flex items-center justify-center">
+                            ${c.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm text-slate-900">${c.name}</p>
+                            <p class="text-xs text-slate-500">${c.phone}</p>
+                        </div>
+                    </div>
+                    <button onclick="openApp('phone'); startCall('${c.phone}', '${c.name}')" class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex items-center justify-center" title="Κλήση">
+                        <i class="fa-solid fa-phone"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function toggleAddContactForm(show) {
+            playUiClick(520);
+            const form = document.getElementById('add-contact-form');
+            if (show) form.classList.remove('hidden');
+            else form.classList.add('hidden');
+            evaluateTeacherProgress();
+        }
+
+        function saveNewContact() {
+            const name = document.getElementById('new-contact-name').value.trim();
+            const phone = document.getElementById('new-contact-phone').value.trim();
+            if (!name || !phone) {
+                showToast('Συμπληρώστε όνομα και τηλέφωνο');
+                return;
+            }
+            playUiClick(680);
+            state.contacts.push({ id: Date.now(), name, phone });
+            document.getElementById('new-contact-name').value = '';
+            document.getElementById('new-contact-phone').value = '';
+            toggleAddContactForm(false);
+            renderContacts();
+            showToast(`Η επαφή «${name}» αποθηκεύτηκε!`);
+            evaluateTeacherProgress();
+        }
+
+        // ==================== CAMERA APP LOGIC ====================
+        const cameraScenes = [
+            { icon: 'fa-school', label: 'Σχολική Αυλή • Εστίαση Έτοιμη', bg: 'from-sky-400 via-sky-200 to-emerald-500' },
+            { icon: 'fa-tree', label: 'Πάρκο & Φύση • Εστίαση Έτοιμη', bg: 'from-emerald-400 via-teal-200 to-lime-400' },
+            { icon: 'fa-book-open', label: 'Αίθουσα Μαθήματος • Εστίαση Έτοιμη', bg: 'from-amber-300 via-orange-100 to-amber-500' }
+        ];
+
+        function switchCameraScene() {
+            playUiClick(540);
+            state.cameraSceneIndex = (state.cameraSceneIndex + 1) % cameraScenes.length;
+            const sc = cameraScenes[state.cameraSceneIndex];
+            const vf = document.getElementById('camera-viewfinder');
+            vf.className = `relative flex-1 rounded-3xl overflow-hidden border-2 border-slate-700 flex flex-col items-center justify-center bg-gradient-to-b ${sc.bg} transition-all`;
+            document.getElementById('camera-scene-content').innerHTML = `
+                <i class="fa-solid ${sc.icon} text-6xl text-slate-800 drop-shadow mb-2"></i>
+                <p class="bg-black/50 text-white text-xs px-3 py-1 rounded-full font-semibold">${sc.label}</p>
+            `;
+        }
+
+        function takePhoto() {
+            playUiClick(850, '16n');
+            const flash = document.getElementById('camera-flash-fx');
+            flash.style.opacity = '0.95';
+            setTimeout(() => { flash.style.opacity = '0'; }, 140);
+
+            const sc = cameraScenes[state.cameraSceneIndex];
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const photoTitle = sc.label.split('•')[0].trim();
+            const bgGrad = sc.icon === 'fa-school' ? '#38bdf8' : sc.icon === 'fa-tree' ? '#34d399' : '#fbbf24';
+            const svgGraphic = `<svg viewBox="0 0 300 220" class="w-full h-full object-cover"><rect width="300" height="220" fill="${bgGrad}"/><circle cx="150" cy="95" r="42" fill="#ffffff" opacity="0.85"/><text x="150" y="105" text-anchor="middle" font-size="28" font-weight="bold" fill="#1e293b">📸</text><text x="150" y="175" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a">${photoTitle}</text></svg>`;
+
+            state.photos.unshift({
+                id: 'cam-' + Date.now(),
+                title: photoTitle,
+                source: 'camera',
+                favorite: false,
+                date: `Σήμερα, ${timeStr}`,
+                svg: svgGraphic
+            });
+
+            document.getElementById('photo-count-badge').textContent = state.photos.length;
+            document.getElementById('gallery-thumb-icon').className = `fa-solid ${sc.icon} text-amber-400`;
+            document.getElementById('about-storage-text').textContent = `${(16.2 + state.photos.length * 0.1).toFixed(1)} GB / 64 GB`;
+            showToast('Η φωτογραφία αποθηκεύτηκε στη Συλλογή!');
+        }
+
+        // ==================== GALLERY APP & WALLPAPER LOGIC ====================
+        function switchGalleryTab(tab) {
+            playUiClick(500);
+            state.galleryTab = tab;
+            ['all', 'camera', 'fav'].forEach(t => {
+                const btn = document.getElementById('gal-tab-' + t);
+                if (t === tab) {
+                    btn.className = 'flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm';
+                } else {
+                    btn.className = 'flex-1 py-1.5 rounded-lg text-slate-600';
+                }
+            });
+            renderGalleryApp();
+        }
+
+        function renderGalleryApp() {
+            const grid = document.getElementById('gallery-app-grid');
+            let filtered = state.photos;
+            if (state.galleryTab === 'camera') filtered = state.photos.filter(p => p.source === 'camera');
+            if (state.galleryTab === 'fav') filtered = state.photos.filter(p => p.favorite);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-2 text-center text-slate-400 text-xs py-12">Δεν βρέθηκαν φωτογραφίες σε αυτή την κατηγορία.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div onclick="openPhotoViewer('${p.id}')" class="group relative rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm cursor-pointer aspect-[4/3] flex flex-col">
+                    <div class="flex-1 w-full h-full overflow-hidden">${p.svg}</div>
+                    ${p.favorite ? '<span class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 text-rose-500 flex items-center justify-center text-xs shadow"><i class="fa-solid fa-heart"></i></span>' : ''}
+                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent p-2">
+                        <p class="text-[11px] font-bold text-white truncate">${p.title}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openPhotoViewer(photoId) {
+            playUiClick(540);
+            const photo = state.photos.find(p => p.id === photoId);
+            if (!photo) return;
+            state.viewerPhotoId = photoId;
+
+            document.getElementById('viewer-photo-title').textContent = photo.title;
+            document.getElementById('viewer-photo-meta').textContent = photo.date;
+            document.getElementById('viewer-photo-canvas').innerHTML = photo.svg;
+            document.getElementById('wallpaper-target-box').classList.add('hidden');
+            document.getElementById('delete-photo-confirm').classList.add('hidden');
+
+            const favBtn = document.getElementById('viewer-fav-btn');
+            favBtn.innerHTML = photo.favorite
+                ? '<i class="fa-solid fa-heart text-rose-500"></i>'
+                : '<i class="fa-regular fa-heart"></i>';
+
+            document.getElementById('photo-viewer-modal').classList.remove('hidden');
+            evaluateTeacherProgress();
+        }
+
+        function closePhotoViewer() {
+            playUiClick(440);
+            document.getElementById('photo-viewer-modal').classList.add('hidden');
+            state.viewerPhotoId = null;
+        }
+
+        function toggleViewerFavorite() {
+            const photo = state.photos.find(p => p.id === state.viewerPhotoId);
+            if (!photo) return;
+            photo.favorite = !photo.favorite;
+            playUiClick(620);
+            document.getElementById('viewer-fav-btn').innerHTML = photo.favorite
+                ? '<i class="fa-solid fa-heart text-rose-500"></i>'
+                : '<i class="fa-regular fa-heart"></i>';
+            renderGalleryApp();
+            showToast(photo.favorite ? 'Προστέθηκε στα Αγαπημένα ❤️' : 'Αφαιρέθηκε από τα Αγαπημένα');
+        }
+
+        function toggleWallpaperTargetBox() {
+            playUiClick(520);
+            document.getElementById('delete-photo-confirm').classList.add('hidden');
+            document.getElementById('wallpaper-target-box').classList.toggle('hidden');
+            evaluateTeacherProgress();
+        }
+
+        function applyPhotoAsWallpaper(target) {
+            if (!state.viewerPhotoId) return;
+            setWallpaperById(state.viewerPhotoId, target);
+            document.getElementById('wallpaper-target-box').classList.add('hidden');
+            evaluateTeacherProgress();
+        }
+
+        function promptDeletePhoto() {
+            playUiClick(420);
+            document.getElementById('wallpaper-target-box').classList.add('hidden');
+            document.getElementById('delete-photo-confirm').classList.remove('hidden');
+        }
+
+        function confirmDeletePhoto() {
+            playUiClick(360);
+            state.photos = state.photos.filter(p => p.id !== state.viewerPhotoId);
+            document.getElementById('photo-count-badge').textContent = state.photos.length;
+            closePhotoViewer();
+            renderGalleryApp();
+            showToast('Η φωτογραφία διαγράφηκε');
+        }
+
+        function setWallpaperById(wpId, target = 'both') {
+            playUiClick(680);
+            const photo = state.photos.find(p => p.id === wpId);
+            const svgHtml = photo ? photo.svg : '';
+
+            if (target === 'home' || target === 'both') {
+                state.homeWallpaperId = wpId;
+                document.getElementById('home-wallpaper-layer').innerHTML = svgHtml;
+            }
+            if (target === 'lock' || target === 'both') {
+                state.lockWallpaperId = wpId;
+                document.getElementById('lock-wallpaper-layer').innerHTML = svgHtml;
+            }
+
+            const targetText = target === 'home' ? 'Αρχική Οθόνη' : target === 'lock' ? 'Οθόνη Κλειδώματος' : 'Αρχική & Κλείδωμα';
+            showToast(`Ορίστηκε ταπετσαρία: ${targetText} 🖼️`);
+        }
+
+        // ==================== MAPS APP LOGIC ====================
+        function updateMapDestination() {
+            playUiClick(520);
+            const val = document.getElementById('map-destination').value;
+            const infoMap = {
+                school: { title: 'Δημοτικό Σχολείο', info: 'Απόσταση: 450 μέτρα • 6 λεπτά με τα πόδια', x: 240, y: 120, path: 'M 40 220 L 140 220 L 140 120 L 240 120' },
+                park: { title: 'Πάρκο & Παιδική Χαρά', info: 'Απόσταση: 300 μέτρα • 4 λεπτά με τα πόδια', x: 215, y: 185, path: 'M 40 220 L 140 220 L 140 185 L 215 185' },
+                library: { title: 'Δημοτική Βιβλιοθήκη', info: 'Απόσταση: 700 μέτρα • 9 λεπτά με τα πόδια', x: 260, y: 50, path: 'M 40 220 L 140 220 L 140 120 L 260 120 L 260 50' },
+                hospital: { title: 'Κέντρο Υγείας', info: 'Απόσταση: 950 μέτρα • 12 λεπτά με τα πόδια', x: 70, y: 60, path: 'M 40 220 L 140 220 L 140 60 L 70 60' }
+            };
+            const d = infoMap[val];
+            document.getElementById('map-dest-title').textContent = d.title;
+            document.getElementById('map-dest-info').textContent = d.info;
+            document.getElementById('map-dest-pin').setAttribute('transform', `translate(${d.x}, ${d.y})`);
+            document.getElementById('map-route-line').setAttribute('d', d.path);
+        }
+
+        // ==================== CALCULATOR APP LOGIC ====================
+        function calcInput(ch) {
+            playUiClick(560);
+            state.calcExpr += ch;
+            document.getElementById('calc-display').textContent = state.calcExpr;
+        }
+
+        function calcClear() {
+            playUiClick(420);
+            state.calcExpr = '';
+            document.getElementById('calc-history').textContent = '';
+            document.getElementById('calc-display').textContent = '0';
+        }
+
+        function calcEquals() {
+            playUiClick(680);
+            try {
+                if (!state.calcExpr) return;
+                // Safe basic arithmetic evaluation
+                const sanitized = state.calcExpr.replace(/[^0-9+\-*/.]/g, '');
+                const result = Function(`"use strict"; return (${sanitized})`)();
+                document.getElementById('calc-history').textContent = state.calcExpr + ' =';
+                state.calcExpr = String(Number(result.toFixed(4)));
+                document.getElementById('calc-display').textContent = state.calcExpr;
+            } catch (e) {
+                document.getElementById('calc-display').textContent = 'Σφάλμα';
+                state.calcExpr = '';
+            }
+        }
+
+        // ==================== SETTINGS SUBMENUS & ACCESSIBILITY ====================
+        const settingsSubPanels = ['themes', 'wifi', 'bt', 'display', 'sound', 'battery', 'security', 'about'];
+
+        function showSettingsMenu() {
+            document.getElementById('settings-main-menu').classList.remove('hidden');
+            document.getElementById('settings-back-sub').classList.add('hidden');
+            settingsSubPanels.forEach(p => {
+                document.getElementById('settings-sub-' + p).classList.add('hidden');
+            });
+        }
+
+        function openSettingsSub(subName) {
+            playUiClick(540);
+            document.getElementById('settings-main-menu').classList.add('hidden');
+            document.getElementById('settings-back-sub').classList.remove('hidden');
+            settingsSubPanels.forEach(p => {
+                document.getElementById('settings-sub-' + p).classList.add('hidden');
+            });
+            document.getElementById('settings-sub-' + subName).classList.remove('hidden');
+            if (subName === 'themes') renderSettingsWallpaperGrid();
+            evaluateTeacherProgress();
+        }
+
+        function setAccentTheme(colorKey) {
+            playUiClick(600);
+            state.accentTheme = colorKey;
+            const palettes = {
+                blue:    { bg: '#2563eb', hover: '#1d4ed8', soft: '#dbeafe', text: '#1e40af', border: '#93c5fd', label: 'Μπλε' },
+                emerald: { bg: '#059669', hover: '#047857', soft: '#d1fae5', text: '#065f46', border: '#6ee7b7', label: 'Πράσινο' },
+                purple:  { bg: '#7c3aed', hover: '#6d28d9', soft: '#ede9fe', text: '#5b21b6', border: '#c4b5fd', label: 'Μωβ' },
+                orange:  { bg: '#ea580c', hover: '#c2410c', soft: '#ffedd5', text: '#9a3412', border: '#fdba74', label: 'Πορτοκαλί' },
+                pink:    { bg: '#db2777', hover: '#be185d', soft: '#fce7f3', text: '#9d174d', border: '#f9a8d4', label: 'Ροζ' }
+            };
+            const p = palettes[colorKey];
+            document.documentElement.style.setProperty('--accent-bg', p.bg);
+            document.documentElement.style.setProperty('--accent-hover', p.hover);
+            document.documentElement.style.setProperty('--accent-soft', p.soft);
+            document.documentElement.style.setProperty('--accent-text', p.text);
+            document.documentElement.style.setProperty('--accent-border', p.border);
+
+            ['blue', 'emerald', 'purple', 'orange', 'pink'].forEach(k => {
+                const btn = document.getElementById('theme-btn-' + k);
+                if (!btn) return;
+                btn.className = k === colorKey
+                    ? 'flex flex-col items-center gap-1 p-1.5 rounded-xl border-2 accent-border accent-soft'
+                    : 'flex flex-col items-center gap-1 p-1.5 rounded-xl border border-slate-200';
+            });
+
+            document.getElementById('set-theme-subtext').textContent = `Θέμα: ${p.label}`;
+            showToast(`Ενεργοποιήθηκε θέμα: ${p.label}`);
+            evaluateTeacherProgress();
+        }
+
+        function renderSettingsWallpaperGrid() {
+            const grid = document.getElementById('settings-wallpaper-grid');
+            grid.innerHTML = state.photos.slice(0, 6).map(p => {
+                const isSel = state.selectedSettingsWpId === p.id;
+                return `
+                    <button onclick="selectSettingsWallpaper('${p.id}')" class="relative rounded-xl overflow-hidden aspect-[4/3] border-2 ${isSel ? 'border-blue-600 ring-2 ring-blue-300' : 'border-slate-200'}">
+                        ${p.svg}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectSettingsWallpaper(wpId) {
+            playUiClick(520);
+            state.selectedSettingsWpId = wpId;
+            renderSettingsWallpaperGrid();
+        }
+
+        function applySelectedSettingsWallpaper(target) {
+            setWallpaperById(state.selectedSettingsWpId, target);
+            evaluateTeacherProgress();
+        }
+
+        function toggleBoldText() {
+            playUiClick(540);
+            state.boldText = !state.boldText;
+            const screen = document.getElementById('phone-screen');
+            const sw = document.getElementById('bold-text-switch');
+            if (state.boldText) {
+                screen.classList.add('bold-text-mode');
+                sw.classList.replace('bg-slate-300', 'bg-blue-600');
+                sw.firstElementChild.classList.add('translate-x-6');
+                showToast('Ενεργοποιήθηκαν τα Έντονα Γράμματα');
+            } else {
+                screen.classList.remove('bold-text-mode');
+                sw.classList.replace('bg-blue-600', 'bg-slate-300');
+                sw.firstElementChild.classList.remove('translate-x-6');
+            }
+        }
+
+        function setScreenTimeout(label) {
+            playUiClick(520);
+            state.screenTimeout = label;
+            document.querySelectorAll('.timeout-btn').forEach(btn => {
+                if (btn.textContent.trim() === label) {
+                    btn.className = 'timeout-btn py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-[11px]';
+                } else {
+                    btn.className = 'timeout-btn py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-[11px]';
+                }
+            });
+            showToast(`Αυτόματο κλείδωμα: ${label}`);
+        }
+
+        function setSoundMode(mode) {
+            state.soundMode = mode;
+            const statusIcon = document.getElementById('status-sound-mode');
+            const subtext = document.getElementById('set-sound-subtext');
+            ['sound', 'vibrate', 'mute'].forEach(m => {
+                const btn = document.getElementById('smode-' + m);
+                btn.className = m === mode
+                    ? 'py-2.5 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-emerald-800 font-bold text-xs flex flex-col items-center gap-1'
+                    : 'py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs flex flex-col items-center gap-1';
+            });
+
+            if (mode === 'sound') {
+                statusIcon.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+                subtext.textContent = `Ήχος • Μελωδία: ${state.ringtone}`;
+                playUiClick(600, '32n', false);
+            } else if (mode === 'vibrate') {
+                statusIcon.innerHTML = '<i class="fa-solid fa-mobile-screen-button text-amber-500"></i>';
+                subtext.textContent = 'Δόνηση ενεργή';
+                showToast('Λειτουργία Δόνησης');
+            } else {
+                statusIcon.innerHTML = '<i class="fa-solid fa-volume-xmark text-rose-500"></i>';
+                subtext.textContent = 'Αθόρυβη λειτουργία';
+                showToast('Αθόρυβη λειτουργία');
+            }
+        }
+
+        function selectRingtone(name) {
+            state.ringtone = name;
+            ['Κλασικό', 'Χαρούμενο', 'Απαλό'].forEach(r => {
+                const btn = document.getElementById('ring-' + r);
+                btn.className = r === name
+                    ? 'py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-xs'
+                    : 'py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs';
+            });
+            if (state.soundMode === 'sound') {
+                document.getElementById('set-sound-subtext').textContent = `Ήχος • Μελωδία: ${name}`;
+            }
+            playRingtonePreview();
+        }
+
+        function toggleTouchSounds() {
+            state.touchSounds = !state.touchSounds;
+            const sw = document.getElementById('touch-sounds-switch');
+            if (state.touchSounds) {
+                sw.classList.replace('bg-slate-300', 'bg-blue-600');
+                sw.firstElementChild.classList.add('translate-x-6');
+                playUiClick(580);
+            } else {
+                sw.classList.replace('bg-blue-600', 'bg-slate-300');
+                sw.firstElementChild.classList.remove('translate-x-6');
+            }
+        }
+
+        function toggleBatterySaver() {
+            playUiClick(520);
+            state.batterySaver = !state.batterySaver;
+            const sw = document.getElementById('battery-saver-switch');
+            const bar = document.getElementById('battery-gauge-bar');
+            const statusIcon = document.getElementById('status-battery-icon');
+            if (state.batterySaver) {
+                sw.classList.replace('bg-slate-300', 'bg-amber-500');
+                sw.firstElementChild.classList.add('translate-x-6');
+                bar.classList.replace('bg-emerald-500', 'bg-amber-500');
+                statusIcon.classList.replace('text-emerald-500', 'text-amber-500');
+                setBrightness(60);
+                document.getElementById('set-battery-subtext').textContent = '85% • Εξοικονόμηση: Ενεργή';
+                showToast('Εξοικονόμηση μπαταρίας ενεργή');
+            } else {
+                sw.classList.replace('bg-amber-500', 'bg-slate-300');
+                sw.firstElementChild.classList.remove('translate-x-6');
+                bar.classList.replace('bg-amber-500', 'bg-emerald-500');
+                statusIcon.classList.replace('text-amber-500', 'text-emerald-500');
+                setBrightness(100);
+                document.getElementById('set-battery-subtext').textContent = '85% • Εξοικονόμηση: Ανενεργή';
+            }
+        }
+
+        function updatePinCode() {
+            const newPin = document.getElementById('change-pin-input').value.trim();
+            if (!/^\d{4}$/.test(newPin)) {
+                showToast('Το PIN πρέπει να είναι 4 αριθμοί');
+                return;
+            }
+            playUiClick(680);
+            state.pinCode = newPin;
+            document.getElementById('current-pin-display').textContent = newPin;
+            document.getElementById('lock-pin-prompt').textContent = `Εισάγετε PIN (Τρέχον: ${newPin})`;
+            document.getElementById('change-pin-input').value = '';
+            showToast(`Το νέο PIN (${newPin}) αποθηκεύτηκε!`);
+        }
+
+        function setFontSize(size) {
+            playUiClick(580);
+            state.fontSize = size;
+            const screen = document.getElementById('phone-screen');
+            screen.classList.remove('font-scale-normal', 'font-scale-large', 'font-scale-xlarge');
+            screen.classList.add('font-scale-' + size);
+
+            ['normal', 'large', 'xlarge'].forEach(s => {
+                const btn = document.getElementById('font-btn-' + s);
+                if (s === size) {
+                    btn.className = 'py-2 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-800 font-bold text-xs';
+                } else {
+                    btn.className = 'py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs';
+                }
+            });
+            showToast('Το μέγεθος γραμματοσειράς άλλαξε');
+            evaluateTeacherProgress();
+        }
+
+        function toggleDarkMode() {
+            playUiClick(540);
+            state.darkMode = !state.darkMode;
+            const screen = document.getElementById('phone-screen');
+            const sw = document.getElementById('dark-mode-switch');
+            if (state.darkMode) {
+                screen.classList.replace('bg-slate-50', 'bg-slate-900');
+                screen.classList.replace('text-slate-900', 'text-slate-100');
+                sw.classList.replace('bg-slate-300', 'bg-blue-600');
+                sw.firstElementChild.classList.add('translate-x-6');
+            } else {
+                screen.classList.replace('bg-slate-900', 'bg-slate-50');
+                screen.classList.replace('text-slate-100', 'text-slate-900');
+                sw.classList.replace('bg-blue-600', 'bg-slate-300');
+                sw.firstElementChild.classList.remove('translate-x-6');
+            }
+        }
+
+        function togglePinLock() {
+            playUiClick(540);
+            state.pinEnabled = !state.pinEnabled;
+            const sw = document.getElementById('pin-lock-switch');
+            if (state.pinEnabled) {
+                sw.classList.replace('bg-slate-300', 'bg-rose-600');
+                sw.firstElementChild.classList.add('translate-x-6');
+                showToast('Ενεργοποιήθηκε PIN: 1234');
+            } else {
+                sw.classList.replace('bg-rose-600', 'bg-slate-300');
+                sw.firstElementChild.classList.remove('translate-x-6');
+                showToast('Το κλείδωμα PIN απενεργοποιήθηκε');
+            }
+        }
+
+        // ==================== TEACHER MODE LOGIC ====================
+        function renderTeacherPanel() {
+            const grid = document.getElementById('lesson-selector-grid');
+            grid.innerHTML = lessons.map((lesson, idx) => {
+                const isActive = idx === state.activeLessonIndex;
+                return `
+                    <button onclick="selectLesson(${idx})" class="p-3 rounded-2xl border text-left transition flex items-center gap-2.5 ${isActive ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'}">
+                        <span class="w-8 h-8 rounded-xl ${isActive ? 'bg-white/20 text-white' : 'bg-white text-blue-600 border border-slate-200'} flex items-center justify-center text-sm shrink-0">
+                            <i class="fa-solid ${lesson.icon}"></i>
+                        </span>
+                        <span class="font-bold text-xs leading-snug">${lesson.title}</span>
+                    </button>
+                `;
+            }).join('');
+
+            const currentLesson = lessons[state.activeLessonIndex];
+            const currentStep = currentLesson.steps[state.activeStepIndex];
+
+            document.getElementById('lesson-badge').textContent = `Ενότητα ${state.activeLessonIndex + 1}`;
+            document.getElementById('lesson-title').textContent = currentLesson.title;
+            document.getElementById('lesson-progress-text').textContent = `Βήμα ${state.activeStepIndex + 1} / ${currentLesson.steps.length}`;
+            document.getElementById('lesson-step-instruction').textContent = currentStep.text;
+
+            const stepsList = document.getElementById('lesson-steps-list');
+            stepsList.innerHTML = currentLesson.steps.map((st, sIdx) => {
+                const done = sIdx < state.activeStepIndex;
+                const current = sIdx === state.activeStepIndex;
+                return `
+                    <div onclick="state.activeStepIndex=${sIdx}; renderTeacherPanel();" class="p-2.5 rounded-xl text-xs flex items-center gap-2.5 cursor-pointer transition ${current ? 'bg-amber-100/80 border border-amber-300 text-slate-900 font-bold' : done ? 'bg-emerald-50 text-emerald-800' : 'bg-white/70 text-slate-500'}">
+                        <i class="fa-solid ${done ? 'fa-circle-check text-emerald-600' : current ? 'fa-arrow-right text-amber-600' : 'fa-circle text-slate-300'}"></i>
+                        <span>${st.text}</span>
+                    </div>
+                `;
+            }).join('');
+
+            applyTeacherHighlight();
+        }
+
+        function selectLesson(idx) {
+            state.activeLessonIndex = idx;
+            state.activeStepIndex = 0;
+            // Auto-unlock if lesson requires home screen and device is locked
+            if (idx > 0 && state.locked) {
+                unlockDevice();
+            }
+            if (idx > 0) {
+                navHome();
+            }
+            renderTeacherPanel();
+        }
+
+        function nextLessonStep() {
+            const currentLesson = lessons[state.activeLessonIndex];
+            if (state.activeStepIndex < currentLesson.steps.length - 1) {
+                state.activeStepIndex++;
+            } else if (state.activeLessonIndex < lessons.length - 1) {
+                selectLesson(state.activeLessonIndex + 1);
+                return;
+            }
+            renderTeacherPanel();
+        }
+
+        function prevLessonStep() {
+            if (state.activeStepIndex > 0) {
+                state.activeStepIndex--;
+                renderTeacherPanel();
+            }
+        }
+
+        function evaluateTeacherProgress() {
+            const currentLesson = lessons[state.activeLessonIndex];
+            const currentStep = currentLesson.steps[state.activeStepIndex];
+            if (currentStep && typeof currentStep.check === 'function' && currentStep.check()) {
+                if (state.activeStepIndex < currentLesson.steps.length - 1) {
+                    state.activeStepIndex++;
+                    renderTeacherPanel();
+                } else {
+                    showToast('Μπράβο! Ολοκλήρωσες την ενότητα! 🎉');
+                    renderTeacherPanel();
+                }
+            } else {
+                applyTeacherHighlight();
+            }
+        }
+
+        function applyTeacherHighlight() {
+            document.querySelectorAll('.teacher-highlight').forEach(el => {
+                el.classList.remove('teacher-highlight');
+            });
+            if (!state.teacherHighlightEnabled) return;
+
+            const currentLesson = lessons[state.activeLessonIndex];
+            const currentStep = currentLesson.steps[state.activeStepIndex];
+            if (!currentStep || !currentStep.target) return;
+
+            const targetEl = document.querySelector(`[data-target="${currentStep.target}"]`);
+            if (targetEl) {
+                targetEl.classList.add('teacher-highlight');
+            }
+        }
+
+        function toggleHighlightHelp() {
+            state.teacherHighlightEnabled = !state.teacherHighlightEnabled;
+            const btn = document.getElementById('highlight-toggle-btn');
+            if (state.teacherHighlightEnabled) {
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Υπόδειξη: ΕΝΕΡΓΗ</span>`;
+                btn.className = 'px-3.5 py-2 rounded-xl bg-amber-100 text-amber-800 hover:bg-amber-200 font-bold text-xs flex items-center gap-1.5 transition';
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-eye-slash"></i><span>Υπόδειξη: ΚΡΥΦΗ</span>`;
+                btn.className = 'px-3.5 py-2 rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold text-xs flex items-center gap-1.5 transition';
+            }
+            applyTeacherHighlight();
+        }
+
+        function toggleTeacherPanel() {
+            const panel = document.getElementById('teacher-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        function resetSimulator() {
+            state.locked = true;
+            state.wifiOn = false;
+            state.wifiConnectedTo = null;
+            state.btOn = false;
+            state.btConnectedTo = null;
+            state.airplaneOn = false;
+            state.flashlightOn = false;
+            state.batterySaver = false;
+            state.dialNumber = '';
+            state.homeWallpaperId = 'wp-default';
+            state.lockWallpaperId = 'wp-default';
+            document.getElementById('home-wallpaper-layer').innerHTML = '';
+            document.getElementById('lock-wallpaper-layer').innerHTML = '';
+            state.activeLessonIndex = 0;
+            state.activeStepIndex = 0;
+            setAccentTheme('blue');
+            setSoundMode('sound');
+            setBrightness(100);
+            setVolume(70);
+            setFontSize('normal');
+            if (state.boldText) toggleBoldText();
+            if (state.darkMode) toggleDarkMode();
+            syncSystemControlsUI();
+            toggleQuickSettings(false);
+            openApp('home');
+            document.getElementById('lock-screen').classList.remove('hidden');
+            renderTeacherPanel();
+            showToast('Η συσκευή επαναφέρθηκε');
+        }
+
+        // ==================== BOOTSTRAP ====================
+        window.onload = function () {
+            updateClock();
+            setInterval(updateClock, 15000);
+            syncSystemControlsUI();
+            renderConversations();
+            renderContacts();
+            renderRecentCalls();
+            renderTeacherPanel();
+        };
+    </script>
+</body>
+</html>
